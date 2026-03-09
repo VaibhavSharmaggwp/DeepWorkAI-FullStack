@@ -1,0 +1,488 @@
+package com.example.deepworkai.ui
+
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.material3.Text as M3Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import com.example.deepworkai.ui.theme.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Devices
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.deepworkai.ui.theme.DeepWorkAITheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+@Composable
+fun ActiveSessionScreen(
+    onFinish: (Int, String) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val focusService = remember { com.example.deepworkai.network.FocusService() }
+    val userId = "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0" // Hardcoded for now based on HomeScreen
+    var sessionId by remember { mutableStateOf<String?>(null) }
+    
+    var seconds by remember { mutableIntStateOf(0) } // Count up from 0
+    val maxSeconds = 1500 // 25 mins
+    
+    var distractions by remember { mutableIntStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var showNextBreakDialog by remember { mutableStateOf(false) }
+    var nextBreakDisplay by remember { mutableStateOf("5 minutes") }
+
+    // API Call to start the session when this screen opens
+    LaunchedEffect(Unit) {
+        val session = focusService.startSession(userId)
+        if (session != null) {
+            sessionId = session.id
+        }
+    }
+
+    // Timer Logic: Increments every second
+    LaunchedEffect(Unit) {
+        while (seconds < maxSeconds) {
+            delay(1000)
+            seconds++
+        }
+        // Auto-finish if timer completes
+        if (seconds >= maxSeconds) {
+            coroutineScope.launch {
+                var risk = "Low"
+                sessionId?.let { id ->
+                    val result = focusService.endSession(id, distractions)
+                    risk = result?.burnoutRisk ?: "Low"
+                }
+                onFinish(distractions, risk)
+            }
+        }
+    }
+
+    // Distraction Logic: Detects if user leaves the app
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                distractions++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Scaffold(
+        containerColor = Color(0xFF0D1117) // Deep dark blue-black background matching the image
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // 1. Top Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Bolt, contentDescription = "Mode", tint = Color(0xFF2DD4BF), modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                M3Text("DEEP FOCUS MODE", color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(Icons.Default.Tune, contentDescription = "Settings", tint = Color(0xFF94A3B8))
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // 2. Subtitle
+            M3Text("Session #42 • Coding", color = Color(0xFF64748B), fontSize = 14.sp)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3. Flow State Badge
+            Surface(
+                color = Color(0xFF0F766E).copy(alpha = 0.15f),
+                shape = CircleShape,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0F766E).copy(alpha = 0.5f))
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Box(modifier = Modifier.size(6.dp).background(Color(0xFF2DD4BF), CircleShape))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    M3Text(
+                        text = "FLOW STATE DETECTED",
+                        color = Color(0xFF2DD4BF),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // 4. Timer Area
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(280.dp)) {
+                // Background Ellipses
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    withTransform({
+                        rotate(degrees = -25f)
+                        scale(scaleX = 0.9f, scaleY = 1.3f)
+                    }) {
+                        drawCircle(
+                            color = Color(0xFF3B82F6).copy(alpha = 0.2f),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                    }
+                    withTransform({
+                        rotate(degrees = 55f)
+                        scale(scaleX = 0.9f, scaleY = 1.3f)
+                    }) {
+                        drawCircle(
+                            color = Color(0xFF10B981).copy(alpha = 0.2f),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                    }
+                }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    M3Text(
+                        text = formatTime(seconds),
+                        color = Color.White,
+                        fontSize = 88.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-2).sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    // Progress bar
+                    Canvas(modifier = Modifier.width(100.dp).height(4.dp)) {
+                        val totalWidth = size.width
+                        drawLine(
+                            color = Color(0xFF1E293B),
+                            start = Offset(0f, size.height / 2),
+                            end = Offset(totalWidth, size.height / 2),
+                            strokeWidth = size.height,
+                            cap = StrokeCap.Round
+                        )
+                        val progressRatio = (seconds.toFloat() / maxSeconds.toFloat()).coerceIn(0f, 1f)
+                        drawLine(
+                            color = Color(0xFF0EA5E9), // cyan-ish blue
+                            start = Offset(0f, size.height / 2),
+                            end = Offset(totalWidth * progressRatio, size.height / 2),
+                            strokeWidth = size.height,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // 5. Cards Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MetricCard(
+                    icon = Icons.Default.NotificationsOff,
+                    value = distractions.toString(),
+                    label = "DISTRACTIONS",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCard(
+                    icon = Icons.Default.Psychology,
+                    value = "85%",
+                    label = "BRAIN LOAD",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 6. Next Break
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { showNextBreakDialog = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                M3Text(
+                    text = buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = Color(0xFF64748B))) {
+                            append("Next break in ")
+                        }
+                        withStyle(style = SpanStyle(color = Color(0xFFCBD5E1))) {
+                            append(nextBreakDisplay)
+                        }
+                    },
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(Icons.Default.Tune, contentDescription = "Edit Break", tint = Color(0xFF64748B), modifier = Modifier.size(12.dp))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 7. Action Button Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Coffee Button
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF171A21),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f)),
+                    modifier = Modifier.size(64.dp).clickable { /* Handle Coffee Break */ }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(Icons.Default.LocalCafe, contentDescription = "Coffee", tint = Color.White)
+                    }
+                }
+
+                // Slide to Finish
+                SlideToFinish(
+                    modifier = Modifier.weight(1f),
+                    onFinished = {
+                        coroutineScope.launch {
+                            var risk = "Low"
+                            sessionId?.let { id ->
+                                val result = focusService.endSession(id, distractions)
+                                risk = result?.burnoutRisk ?: "Low"
+                            }
+                            onFinish(distractions, risk)
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 8. Audio Player
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF11151A),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f)),
+                modifier = Modifier.fillMaxWidth().height(84.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Equalizer Icon Box
+                    Box(
+                        modifier = Modifier.size(48.dp).background(Color(0xFF064E3B).copy(alpha=0.8f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.BarChart, contentDescription = "Equalizer", tint = Color(0xFF34D399), modifier = Modifier.size(24.dp))
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        M3Text("Binaural Beats 40Hz", color = Color(0xFFF1F5F9), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        M3Text("Focus Frequency", color = Color(0xFF64748B), fontSize = 12.sp)
+                    }
+
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp).clickable { })
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
+                    Box(
+                        modifier = Modifier.size(44.dp).background(Color(0xFF262A33), CircleShape).clickable { },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Pause, contentDescription = "Pause", tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+
+        if (showNextBreakDialog) {
+            AlertDialog(
+                onDismissRequest = { showNextBreakDialog = false },
+                containerColor = Color(0xFF13171D),
+                title = {
+                    M3Text("Set Next Break", fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        val breaks = listOf("5 minutes", "10 minutes", "15 minutes", "20 minutes")
+                        breaks.forEach { breakTime ->
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        nextBreakDisplay = breakTime
+                                        showNextBreakDialog = false
+                                    },
+                                color = if (nextBreakDisplay == breakTime) DeepWorkBlue.copy(alpha = 0.2f) else Color.Transparent,
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (nextBreakDisplay == breakTime) DeepWorkBlue else Color.White.copy(alpha=0.03f))
+                            ) {
+                                M3Text(
+                                    breakTime,
+                                    modifier = Modifier.padding(16.dp),
+                                    color = if (nextBreakDisplay == breakTime) DeepWorkBlue else Color.White,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showNextBreakDialog = false }) {
+                        M3Text("Cancel", color = Color.White)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun MetricCard(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier) {
+    Surface(
+        modifier = modifier.height(110.dp),
+        color = Color(0xFF13171D),
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            M3Text(value, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(6.dp))
+            M3Text(label, color = Color(0xFF64748B), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+        }
+    }
+}
+
+fun formatTime(totalSeconds: Int): String {
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}
+
+@Composable
+fun SlideToFinish(modifier: Modifier = Modifier, onFinished: () -> Unit) {
+    val thumbSize = 56.dp
+    val swipeState = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    var maxWidthPx by remember { mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = modifier
+            .height(64.dp)
+            .background(Color(0xFF121822), RoundedCornerShape(32.dp))
+            .border(1.dp, Color.White.copy(alpha=0.03f), RoundedCornerShape(32.dp))
+            .padding(4.dp)
+            .onSizeChanged { size ->
+                maxWidthPx = size.width.toFloat()
+            }
+    ) {
+        // Background text
+        M3Text(
+            text = "Slide to Finish   >", 
+            color = Color(0xFF2563EB), 
+            modifier = Modifier.align(Alignment.Center).offset(x = 10.dp),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        // The thumb
+        val thumbPx = with(LocalDensity.current) { thumbSize.toPx() }
+        val maxPx = maxWidthPx - thumbPx
+
+        if (maxWidthPx > 0) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(swipeState.value.roundToInt(), 0) }
+                    .size(thumbSize)
+                    .background(Color(0xFF2563EB), RoundedCornerShape(24.dp))
+                    .pointerInput(maxPx) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                coroutineScope.launch {
+                                    if (swipeState.value > maxPx * 0.8f) {
+                                        swipeState.animateTo(maxPx)
+                                        delay(100)
+                                        onFinished()
+                                    } else {
+                                        swipeState.animateTo(0f, tween(300))
+                                    }
+                                }
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                coroutineScope.launch {
+                                    val newValue = (swipeState.value + dragAmount).coerceIn(0f, maxPx)
+                                    swipeState.snapTo(newValue)
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                // Small inner white square
+                Box(modifier = Modifier.size(10.dp).background(Color.White, RoundedCornerShape(2.dp)))
+            }
+        }
+    }
+}
+
+@Preview(
+    showBackground = true,
+    device = Devices.PIXEL_7,
+    name = "Active Session - Deep Work Mode",
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+)
+@Composable
+fun ActiveSessionPreview() {
+    DeepWorkAITheme {
+        ActiveSessionScreen(onFinish = { _, _ -> })
+    }
+}

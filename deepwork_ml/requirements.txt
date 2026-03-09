@@ -1,0 +1,5 @@
+pandas          # For data manipulation
+psycopg2-binary # To connect to your PostgreSQL
+scikit-learn    # The ML library for classification
+matplotlib      # For plotting your training results
+python-dotenv   # To keep your DB passwords safe
