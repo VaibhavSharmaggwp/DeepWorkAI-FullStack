@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,44 +62,70 @@ fun LoginScreen(
     val googleLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        try {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            val account = task.getResult(ApiException::class.java)
-            val idToken = account?.idToken
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            try {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                if (task.isSuccessful) {
+                    val account = task.getResult(ApiException::class.java)
+                    val idToken = account?.idToken
 
-            Log.d("GoogleLogin", "Google Sign-In Account: ${account?.email}")
-            Log.d("GoogleLogin", "ID Token available: ${idToken != null}")
+                    Log.d("GoogleLogin", "Google Sign-In Account: ${account?.email}")
+                    Log.d("GoogleLogin", "ID Token available: ${idToken != null}")
 
-            if (idToken != null) {
-                scope.launch {
-                    isLoading = true
-                    Toasty.info(context, "Connecting with Google...", Toast.LENGTH_SHORT, true).show()
-                    val response = authService.loginWithGoogle(idToken)
-                    isLoading = false
-                    response.onSuccess { authResponse ->
-                        Log.d("GoogleLogin", "Backend sync successful for ${authResponse.user.email}")
-                        Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
-                        onNavigateToHome()
-                    }.onFailure { err ->
-                        Log.e("GoogleLogin", "Backend sync failed", err)
-                        Toasty.error(context, err.message ?: "Google Login failed to sync with server.", Toast.LENGTH_LONG, true).show()
+                    if (idToken != null) {
+                        scope.launch {
+                            isLoading = true
+                            Toasty.info(context, "Connecting with Google...", Toast.LENGTH_SHORT, true).show()
+                            val response = authService.loginWithGoogle(idToken)
+                            isLoading = false
+                            response.onSuccess { authResponse ->
+                                Log.d("GoogleLogin", "Backend sync successful for ${authResponse.user.email}")
+                                // 🚀 SAVE USER DATA
+                                com.example.deepworkai.network.NetworkPreferences.userId = authResponse.user.id
+                                com.example.deepworkai.network.NetworkPreferences.userName = authResponse.user.fullName
+                                
+                                Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
+                                onNavigateToHome()
+                            }.onFailure { err ->
+                                Log.e("GoogleLogin", "Backend sync failed. URL: ${com.example.deepworkai.BuildConfig.BACKEND_URL}", err)
+                                Toasty.error(context, "Backend Error: ${err.message}", Toast.LENGTH_LONG, true).show()
+                            }
+                        }
+                    } else {
+                        Log.e("GoogleLogin", "No ID Token returned from Google")
+                        Toasty.error(context, "Google login failed: No ID Token.", Toast.LENGTH_LONG, true).show()
                     }
+                } else {
+                    val exception = task.exception as? ApiException
+                    Log.e("GoogleLogin", "Task not successful. Code: ${exception?.statusCode}", exception)
+                    Toasty.error(context, "Google Sign-In failed (Code ${exception?.statusCode}).", Toast.LENGTH_LONG, true).show()
                 }
-            } else {
-                Log.e("GoogleLogin", "No ID Token returned from Google")
-                Toasty.error(context, "Google login failed: No ID Token.", Toast.LENGTH_LONG, true).show()
+            } catch (e: ApiException) {
+                Log.e("GoogleLogin", "Google Sign-In ApiException: Code ${e.statusCode}, Message: ${e.message}")
+                val msg = when(e.statusCode) {
+                    10 -> "Developer Error (Check SHA-1/Client ID in Google Console)"
+                    12501 -> "Sign-in cancelled by user"
+                    else -> "Error ${e.statusCode}: ${e.message}"
+                }
+                if (e.statusCode != 12501) {
+                    Toasty.error(context, msg, Toast.LENGTH_LONG, true).show()
+                }
+            } catch (e: Exception) {
+                Log.e("GoogleLogin", "Unexpected error during Google login", e)
+                Toasty.error(context, "An unexpected error occurred.", Toast.LENGTH_LONG, true).show()
             }
-        } catch (e: ApiException) {
-            Log.e("GoogleLogin", "Google Sign-In Failed: Code ${e.statusCode}, Message: ${e.message}")
-            Toasty.error(context, "Google login failed (Code ${e.statusCode}). Check SHA-1/Client ID.", Toast.LENGTH_LONG, true).show()
-        } catch (e: Exception) {
-            Log.e("GoogleLogin", "Unexpected error during Google login", e)
-            Toasty.error(context, "An unexpected error occurred.", Toast.LENGTH_LONG, true).show()
+        } else {
+            Log.w("GoogleLogin", "Activity result NOT OK. ResultCode: ${result.resultCode}")
+            if (result.resultCode != android.app.Activity.RESULT_CANCELED) {
+                Toasty.warning(context, "Google Sign-In was not successful.", Toast.LENGTH_SHORT, true).show()
+            }
         }
     }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showIpDialog by remember { mutableStateOf(false) }
+    var ipDialogText by remember { mutableStateOf(com.example.deepworkai.network.NetworkPreferences.backendUrl) }
 
     Scaffold(
         containerColor = DeepWorkBackground
@@ -112,7 +139,14 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(30.dp))
+            
+            // Settings Icon for IP
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                IconButton(onClick = { showIpDialog = true }) {
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = DeepWorkTextSecondary)
+                }
+            }
 
             // --- Logo Section ---
             Box(
@@ -194,6 +228,10 @@ fun LoginScreen(
                         val response = authService.login(request)
                         isLoading = false
                         response.onSuccess { authResponse ->
+                            // 🚀 SAVE USER DATA
+                            com.example.deepworkai.network.NetworkPreferences.userId = authResponse.user.id
+                            com.example.deepworkai.network.NetworkPreferences.userName = authResponse.user.fullName
+                            
                             Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
                             onNavigateToHome()
                         }.onFailure { err ->
@@ -231,6 +269,39 @@ fun LoginScreen(
                 )
             }
         }
+    }
+
+    if (showIpDialog) {
+        AlertDialog(
+            onDismissRequest = { showIpDialog = false },
+            containerColor = DeepWorkSurface,
+            title = { Text("Configure Backend IP", color = Color.White) },
+            text = {
+                OutlinedTextField(
+                    value = ipDialogText,
+                    onValueChange = { ipDialogText = it },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    com.example.deepworkai.network.NetworkPreferences.backendUrl = ipDialogText
+                    showIpDialog = false
+                    Toasty.success(context, "IP Updated", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("Save", color = DeepWorkBlue)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showIpDialog = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
     }
 }
 

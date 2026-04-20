@@ -1,4 +1,6 @@
 import java.util.Properties
+import java.net.NetworkInterface
+import java.net.Inet4Address
 
 plugins {
     alias(libs.plugins.android.application)
@@ -25,8 +27,29 @@ android {
         if (localPropertiesFile.exists()) {
             localPropertiesFile.inputStream().use { localProperties.load(it) }
         }
-        val backendIp = localProperties.getProperty("BACKEND_IP") ?: "10.0.2.2"
-        buildConfigField("String", "BACKEND_IP", "\"$backendIp\"")
+        var backendUrl = localProperties.getProperty("BACKEND_URL")
+        if (backendUrl.isNullOrBlank()) {
+            var ip: String? = null
+            try {
+                val interfaces = NetworkInterface.getNetworkInterfaces()
+                while (interfaces.hasMoreElements()) {
+                    val networkInterface = interfaces.nextElement()
+                    if (networkInterface.isLoopback || !networkInterface.isUp) continue
+                    val addresses = networkInterface.inetAddresses
+                    while (addresses.hasMoreElements()) {
+                        val address = addresses.nextElement()
+                        if (!address.isLoopbackAddress && address is Inet4Address) {
+                            ip = address.hostAddress
+                            break
+                        }
+                    }
+                    if (ip != null) break
+                }
+            } catch (e: Exception) {}
+            backendUrl = if (ip != null) "http://$ip:8080" else "http://10.0.2.2:8080"
+            println("Auto-detected local IP for BACKEND_URL: $backendUrl")
+        }
+        buildConfigField("String", "BACKEND_URL", "\"$backendUrl\"")
 
         val googleClientId = localProperties.getProperty("GOOGLE_CLIENT_ID") ?: ""
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")

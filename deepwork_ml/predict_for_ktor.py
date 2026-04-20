@@ -1,9 +1,4 @@
 import sys
-import joblib
-import pandas as pd
-
-# Load the brain i trained
-model = joblib.load('burnout_model.pkl')
 
 def predict():
     # Read arguments passed from Ktor
@@ -12,18 +7,21 @@ def predict():
     distractions = int(sys.argv[3])
     score = int(sys.argv[4])
 
+    # Rule-based logic requested by the user
+    # 0 = Low, 1 = Medium, 2 = High
+    risk = 1 
 
-    dist_rate = distractions / (duration + 1)
-
-    input_data = pd.DataFrame([[duration, hour, dist_rate, score]], 
-                              columns=['duration_min', 'hour_of_day', 'distraction_rate', 'focus_score'])
-    
-    # Get prediction (0, 1, or 2)
-    prediction = model.predict(input_data)[0]
+    if duration < 20: 
+        risk = 0  # low burnout if not enough time
+    elif duration > 60 and distractions <= 2:
+        risk = 2  # high burnout if hyper-focusing without breaks
+    elif score < 50 and duration > 30:
+        risk = 2  # high burnout if struggling
+    elif duration > 90:
+        risk = 2  # high burnout if overworking
 
     # Print only the result so Ktor can read it
-    print(prediction)
-
+    print(risk)
 
 if __name__ == "__main__":
     predict()

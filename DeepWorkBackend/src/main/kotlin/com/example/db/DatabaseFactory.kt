@@ -3,12 +3,10 @@ package com.example.db
 import com.example.models.FocusSession
 import com.example.models.Users
 import kotlinx.coroutines.Dispatchers
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.TransactionManager
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.OffsetDateTime
+import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import java.time.LocalDateTime
 import java.util.*
 
 object DatabaseFactory{
@@ -27,8 +25,8 @@ object DatabaseFactory{
             val database = Database.connect(jdbcUrl, driverClassName, user, password)
 
             transaction(database){
-                SchemaUtils.create(Users)
-                println("DatabaseFactory: Table 'users' verified/created")
+                SchemaUtils.create(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable)
+                println("DatabaseFactory: Tables 'users', 'focus_sessions', 'daily_analytics', 'session_history', 'distraction_logs' verified/created")
             }
             println("DatabaseFactory: Connection successful")
         } catch (e: Exception) {
@@ -38,28 +36,21 @@ object DatabaseFactory{
     }
 
     // This helper makes sure database operations don't "freeze" your server
-    suspend fun <T> dbQuery(block: suspend () -> T): T =
+    suspend fun <T> dbQuery(block: suspend Transaction.() -> T): T =
         newSuspendedTransaction(Dispatchers.IO) { block() }
 
 
     suspend fun startFocusSession(userId: UUID): FocusSession? = dbQuery {
         val sessionId = UUID.randomUUID()
-        val startTime = OffsetDateTime.now()
+        val startTime = LocalDateTime.now()
 
-        // Access the JDBC connection from the current Exposed transaction
-        val connection = TransactionManager.current().connection.connection as java.sql.Connection
+        val result = FocusSessionsTable.insert {
+            it[id] = sessionId
+            it[FocusSessionsTable.userId] = userId
+            it[FocusSessionsTable.startTime] = startTime
+        }
 
-        val insertStatement = connection.prepareStatement(
-            "INSERT INTO focus_sessions (id, user_id, start_time) VALUES (?, ?, ?)"
-        )
-
-        insertStatement.setObject(1, sessionId)
-        insertStatement.setObject(2, userId)
-        insertStatement.setObject(3, startTime)
-
-        val result = insertStatement.executeUpdate()
-
-        if (result > 0) {
+        if (result.insertedCount > 0) {
             FocusSession(
                 id = sessionId.toString(),
                 userId = userId.toString(),
@@ -67,42 +58,36 @@ object DatabaseFactory{
             )
         } else null
     }
+
     suspend fun endFocusSession(sessionId: String, distractions: Int): FocusSession? = dbQuery {
-        val endTime = OffsetDateTime.now()
-        val connection = TransactionManager.current().connection.connection as java.sql.Connection
+        val sId = UUID.fromString(sessionId)
+        val endTime = LocalDateTime.now()
 
-        // 1. First, we need to get the start_time to calculate the score
-        val selectStatement = connection.prepareStatement(
-            "SELECT start_time FROM focus_sessions WHERE id = ?"
-        )
-        selectStatement.setObject(1, UUID.fromString(sessionId))
-        val resultSet = selectStatement.executeQuery()
+        // 1. Get the session to calculate score
+        val existingSession = FocusSessionsTable.select { FocusSessionsTable.id eq sId }.singleOrNull()
 
-        if (resultSet.next()) {
-            val startTime = resultSet.getObject("start_time", OffsetDateTime::class.java)
+        if (existingSession != null) {
+            val startTime = existingSession[FocusSessionsTable.startTime]
 
             // 2. Simple Math: Score starts at 100 and drops per distraction
-            // Later, we can make this much smarter with your ML model
             val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes()
             val calculatedScore = if (durationMinutes > 0) {
                 (100 - (distractions * 5)).coerceIn(0, 100)
             } else 100
 
             // 3. Update the row
-            val updateStatement = connection.prepareStatement(
-                "UPDATE focus_sessions SET end_time = ?, distractions = ?, focus_score = ? WHERE id = ?"
-            )
-            updateStatement.setObject(1, endTime)
-            updateStatement.setInt(2, distractions)
-            updateStatement.setInt(3, calculatedScore)
-            updateStatement.setObject(4, UUID.fromString(sessionId))
+            val updated = FocusSessionsTable.update({ FocusSessionsTable.id eq sId }) {
+                it[FocusSessionsTable.endTime] = endTime
+                it[FocusSessionsTable.distractions] = distractions
+                it[FocusSessionsTable.focusScore] = calculatedScore
+                it[FocusSessionsTable.durationMinutes] = durationMinutes.toInt()
+            }
 
-            val result = updateStatement.executeUpdate()
-
-            if (result > 0) {
+            if (updated > 0) {
+                println("DatabaseFactory: Session $sessionId ended successfully with score $calculatedScore")
                 FocusSession(
                     id = sessionId,
-                    userId = "", // We can leave this blank for the response
+                    userId = existingSession[FocusSessionsTable.userId].toString(),
                     startTime = startTime.toString(),
                     endTime = endTime.toString(),
                     focusScore = calculatedScore,
@@ -113,29 +98,69 @@ object DatabaseFactory{
     }
 
     suspend fun getShortHistory(userId: UUID): List<FocusSession> = dbQuery {
-        val connection = TransactionManager.current().connection.connection as java.sql.Connection
-        val sessions = mutableListOf<FocusSession>()
-
-        // Query to get the most recent sessions first
-        val selectStatement = connection.prepareStatement(
-            "SELECT * FROM focus_sessions WHERE user_id = ? ORDER BY start_time DESC LIMIT 10"
-        )
-        selectStatement.setObject(1, userId)
-        val resultSet = selectStatement.executeQuery()
-
-        while (resultSet.next()) {
-            sessions.add(
+        FocusSessionsTable
+            .select { FocusSessionsTable.userId eq userId }
+            .orderBy(FocusSessionsTable.startTime, SortOrder.DESC)
+            .limit(10)
+            .map {
                 FocusSession(
-                    id = resultSet.getString("id"),
-                    userId = resultSet.getString("user_id"),
-                    startTime = resultSet.getTimestamp("start_time").toInstant().toString(),
-                    endTime = resultSet.getTimestamp("end_time")?.toInstant()?.toString(),
-                    focusScore = resultSet.getInt("focus_score"),
-                    distractions = resultSet.getInt("distractions"),
-                    cognitiveLoad = resultSet.getString("cognitive_load")
+                    id = it[FocusSessionsTable.id].toString(),
+                    userId = it[FocusSessionsTable.userId].toString(),
+                    startTime = it[FocusSessionsTable.startTime].toString(),
+                    endTime = it[FocusSessionsTable.endTime]?.toString(),
+                    focusScore = it[FocusSessionsTable.focusScore],
+                    distractions = it[FocusSessionsTable.distractions],
+                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low"
+                )
+            }
+    }
+
+    suspend fun insertDistractions(sessionId: String, userId: String, apps: List<com.example.models.DistractionApp>) = dbQuery {
+        for (app in apps) {
+            DistractionLogsTable.insert {
+                it[DistractionLogsTable.userId] = userId
+                it[DistractionLogsTable.appName] = app.appName
+                it[DistractionLogsTable.usageTime] = app.usageTime
+                it[DistractionLogsTable.sessionId] = sessionId
+                it[DistractionLogsTable.createdAt] = LocalDateTime.now()
+            }
+        }
+    }
+
+    suspend fun getDistractionsList(userId: UUID): List<com.example.models.SessionDistractions> = dbQuery {
+        val distLogs = DistractionLogsTable
+            .select { DistractionLogsTable.userId eq userId.toString() }
+            .orderBy(DistractionLogsTable.createdAt to SortOrder.DESC)
+            
+        val grouped = distLogs.groupBy { it[DistractionLogsTable.sessionId] }
+        
+        var counter = 1
+        val resultList = mutableListOf<com.example.models.SessionDistractions>()
+        
+        for ((sessId, rows) in grouped) {
+            if (counter > 10) break
+            
+            // Combine duplicate apps in same session
+            val appsMap = mutableMapOf<String, Int>()
+            for (r in rows) {
+                val appNm = r[DistractionLogsTable.appName]
+                appsMap[appNm] = appsMap.getOrDefault(appNm, 0) + r[DistractionLogsTable.usageTime]
+            }
+            
+            val appsList = appsMap.map { (k, v) ->
+                com.example.models.DistractionApp(appName = k, usageTime = v)
+            }.sortedByDescending { it.usageTime }
+            
+            resultList.add(
+                com.example.models.SessionDistractions(
+                    sessionTitle = "Session $counter",
+                    date = "Recent",
+                    startTime = "",
+                    apps = appsList
                 )
             )
+            counter++
         }
-        sessions
+        resultList
     }
 }

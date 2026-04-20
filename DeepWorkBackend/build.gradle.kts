@@ -55,6 +55,7 @@ dependencies {
 
     // Ktor JWT Authentication
     implementation("io.ktor:ktor-server-auth-jwt-jvm:${ktor_version}")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 
     // Testing
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktor_version")

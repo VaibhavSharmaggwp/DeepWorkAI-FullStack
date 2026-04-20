@@ -168,8 +168,8 @@ fun RegisterScreen(
                             val response = authService.register(request)
                             isLoading = false
                             response.onSuccess { authResponse ->
-                                Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
-                                onNavigateToHome()
+                                Toasty.success(context, "Welcome, ${authResponse.user.fullName}! Please login.", Toast.LENGTH_LONG, true).show()
+                                onNavigateToLogin()
                             }.onFailure { err ->
                                 Toasty.error(context, err.message ?: "Registration failed.", Toast.LENGTH_LONG, true).show()
                             }

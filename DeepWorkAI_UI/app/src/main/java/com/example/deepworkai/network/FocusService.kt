@@ -7,7 +7,7 @@ import io.ktor.http.*
 import com.example.deepworkai.BuildConfig
 
 class FocusService {
-    private val BASE_URL = "https://${BuildConfig.BACKEND_IP}/sessions"
+    private val BASE_URL get() = "${NetworkPreferences.backendUrl}/sessions"
 
     suspend fun startSession(userId: String): FocusSession? {
         return try {
@@ -22,12 +22,21 @@ class FocusService {
     }
 
     // This is the ONLY endSession function you need now
-    suspend fun endSession(sessionId: String, distractions: Int): EndSessionResponse? {
+    suspend fun endSession(sessionId: String, distractions: Int, distractedApps: List<DistractionApp>? = null): EndSessionResponse? {
         return try {
             KtorClient.httpClient.post("$BASE_URL/end") {
                 contentType(ContentType.Application.Json)
-                setBody(EndSessionRequest(sessionId, distractions))
+                setBody(EndSessionRequest(sessionId, distractions, distractedApps))
             }.body() // This now captures both session and burnoutRisk
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getDistractionInsights(userId: String): DistractionInsightsResponse? {
+        return try {
+            KtorClient.httpClient.get("${NetworkPreferences.backendUrl}/analytics/distractions/$userId").body()
         } catch (e: Exception) {
             e.printStackTrace()
             null

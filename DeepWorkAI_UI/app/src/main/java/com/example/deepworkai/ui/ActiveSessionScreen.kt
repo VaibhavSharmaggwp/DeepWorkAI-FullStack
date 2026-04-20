@@ -16,6 +16,7 @@ import androidx.compose.material3.Text as M3Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import com.example.deepworkai.ui.theme.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -41,11 +42,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.example.deepworkai.ui.theme.DeepWorkAITheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.example.deepworkai.viewmodel.SessionViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.roundToInt
 
 @Composable
 fun ActiveSessionScreen(
-    onFinish: (Int, String) -> Unit
+    onFinish: (com.example.deepworkai.models.EndSessionResponse?) -> Unit,
+    viewModel: SessionViewModel = viewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
     val focusService = remember { com.example.deepworkai.network.FocusService() }
@@ -58,32 +62,47 @@ fun ActiveSessionScreen(
     var distractions by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var isPaused by remember { mutableStateOf(false) }
+    val cognitiveLoad by viewModel.cognitiveLoad.collectAsState()
+
     var showNextBreakDialog by remember { mutableStateOf(false) }
     var nextBreakDisplay by remember { mutableStateOf("5 minutes") }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
     // API Call to start the session when this screen opens
     LaunchedEffect(Unit) {
+        sessionStartTime = System.currentTimeMillis()
+        if (!com.example.deepworkai.utils.AppUsageTracker.hasUsageStatsPermission(context)) {
+            com.example.deepworkai.utils.AppUsageTracker.requestUsageStatsPermission(context)
+        }
         val session = focusService.startSession(userId)
         if (session != null) {
             sessionId = session.id
         }
     }
 
-    // Timer Logic: Increments every second
-    LaunchedEffect(Unit) {
+    // Timer Logic: Increments every second if not paused
+    LaunchedEffect(isPaused) {
         while (seconds < maxSeconds) {
-            delay(1000)
-            seconds++
+            if (!isPaused) {
+                delay(1000)
+                seconds++
+            } else {
+                delay(500) // Polling interval while paused
+            }
         }
         // Auto-finish if timer completes
         if (seconds >= maxSeconds) {
             coroutineScope.launch {
-                var risk = "Low"
+                var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
                 sessionId?.let { id ->
-                    val result = focusService.endSession(id, distractions)
-                    risk = result?.burnoutRisk ?: "Low"
+                    val endTime = System.currentTimeMillis()
+                    val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                    finalResult = focusService.endSession(id, distractions, apps)
                 }
-                onFinish(distractions, risk)
+                onFinish(finalResult)
             }
         }
     }
@@ -143,8 +162,8 @@ fun ActiveSessionScreen(
                     Box(modifier = Modifier.size(6.dp).background(Color(0xFF2DD4BF), CircleShape))
                     Spacer(modifier = Modifier.width(8.dp))
                     M3Text(
-                        text = "FLOW STATE DETECTED",
-                        color = Color(0xFF2DD4BF),
+                        text = if (isPaused) "SESSION PAUSED" else "FLOW STATE DETECTED",
+                        color = if (isPaused) Color(0xFFFACC15) else Color(0xFF2DD4BF),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
@@ -184,7 +203,8 @@ fun ActiveSessionScreen(
                         color = Color.White,
                         fontSize = 88.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = (-2).sp
+                        letterSpacing = (-2).sp,
+                        modifier = Modifier.blur(if (isPaused) 8.dp else 0.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     // Progress bar
@@ -224,8 +244,8 @@ fun ActiveSessionScreen(
                 )
                 MetricCard(
                     icon = Icons.Default.Psychology,
-                    value = "85%",
-                    label = "BRAIN LOAD",
+                    value = if (cognitiveLoad == "High") "92%" else if (cognitiveLoad == "Medium") "85%" else "64%",
+                    label = "BRAIN LOAD ($cognitiveLoad)",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -266,12 +286,16 @@ fun ActiveSessionScreen(
                 // Coffee Button
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFF171A21),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f)),
-                    modifier = Modifier.size(64.dp).clickable { /* Handle Coffee Break */ }
+                    color = if (isPaused) Color(0xFFFACC15).copy(alpha = 0.2f) else Color(0xFF171A21),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isPaused) Color(0xFFFACC15) else Color.White.copy(alpha=0.03f)),
+                    modifier = Modifier.size(64.dp).clickable { isPaused = !isPaused }
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Icon(Icons.Default.LocalCafe, contentDescription = "Coffee", tint = Color.White)
+                        Icon(
+                            imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.LocalCafe,
+                            contentDescription = if (isPaused) "Resume" else "Pause",
+                            tint = if (isPaused) Color(0xFFFACC15) else Color.White
+                        )
                     }
                 }
 
@@ -280,12 +304,13 @@ fun ActiveSessionScreen(
                     modifier = Modifier.weight(1f),
                     onFinished = {
                         coroutineScope.launch {
-                            var risk = "Low"
+                            var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
                             sessionId?.let { id ->
-                                val result = focusService.endSession(id, distractions)
-                                risk = result?.burnoutRisk ?: "Low"
+                                val endTime = System.currentTimeMillis()
+                                val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                                finalResult = focusService.endSession(id, distractions, apps)
                             }
-                            onFinish(distractions, risk)
+                            onFinish(finalResult)
                         }
                     }
                 )
@@ -483,6 +508,6 @@ fun SlideToFinish(modifier: Modifier = Modifier, onFinished: () -> Unit) {
 @Composable
 fun ActiveSessionPreview() {
     DeepWorkAITheme {
-        ActiveSessionScreen(onFinish = { _, _ -> })
+        ActiveSessionScreen(onFinish = { _ -> })
     }
 }

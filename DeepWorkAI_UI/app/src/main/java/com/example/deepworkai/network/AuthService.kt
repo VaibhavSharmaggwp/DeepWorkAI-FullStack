@@ -13,8 +13,8 @@ import io.ktor.http.*
 
 class AuthService {
 
-    // IP is configured in local.properties and injected via BuildConfig
-    private val BASE_URL = "https://${BuildConfig.BACKEND_IP}"
+    // URL is configured via NetworkPreferences to allow dynamic IP changes
+    private val BASE_URL get() = NetworkPreferences.backendUrl
 
     suspend fun login(loginRequest: LoginRequest): Result<AuthResponse> {
         Log.d("AuthService", "Attempting login for ${loginRequest.email}")
@@ -83,4 +83,4 @@ class AuthService {
             Result.failure(Exception("Connection failed: ${e.message}"))
         }
     }
-}
+}

@@ -1,19 +1,24 @@
 package com.example.routes
-
 import com.example.db.DatabaseFactory
 import com.example.models.EndSessionRequest
-import com.example.models.FocusSession
+import com.example.models.EndSessionResponse
+import com.example.models.SaveSessionRequest
 import com.example.models.StartSessionRequest
+import com.example.repository.FocusRepository
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.io.File
 import java.util.*
 
-fun Route.focusRoutes() {
-    route("/sessions") { // Everything inside this block starts with /sessions
+// Pass the repository as a parameter so both route sets can use it
+fun Route.allRoutes(repository: FocusRepository) {
 
-        // POST /sessions/start
+    // --- FOCUS SESSIONS ROUTES ---
+    route("/sessions") {
         post("/start") {
             try {
                 val request = call.receive<StartSessionRequest>()
@@ -28,27 +33,60 @@ fun Route.focusRoutes() {
             }
         }
 
-        // POST /sessions/end
         post("/end") {
             try {
                 val request = call.receive<EndSessionRequest>()
                 val updatedSession = DatabaseFactory.endFocusSession(request.sessionId, request.distractions)
 
                 if (updatedSession != null) {
-                    // 🧠 DYNAMIC CALCULATIONS
                     val startDateTime = java.time.OffsetDateTime.parse(updatedSession.startTime)
                     val endDateTime = java.time.OffsetDateTime.now()
-                    val actualDuration = java.time.Duration.between(startDateTime, endDateTime).toMinutes().toDouble()
+                    val actualDuration = java.time.Duration.between(startDateTime, endDateTime).toMinutes().toInt()
                     val currentHour = endDateTime.hour
 
                     val riskLabel = getMLBurnoutPrediction(
-                        duration = actualDuration,
+                        duration = actualDuration.toDouble(),
                         hour = currentHour,
                         distractions = updatedSession.distractions,
                         score = updatedSession.focusScore
                     )
 
-                    call.respond(HttpStatusCode.OK, com.example.models.EndSessionResponse(
+                    if (!request.distractedApps.isNullOrEmpty()) {
+                        DatabaseFactory.insertDistractions(
+                            sessionId = updatedSession.id,
+                            userId = updatedSession.userId.toString(),
+                            apps = request.distractedApps
+                        )
+                    }
+
+                    // 🚀 CRITICAL: Update the Analytics table whenever a session ends!
+                    repository.saveSessionAndUpdateAnalytics(
+                        userId = updatedSession.userId.toString(),
+                        sessionId = updatedSession.id,
+                        score = updatedSession.focusScore,
+                        duration = actualDuration,
+                        switches = updatedSession.distractions,
+                        risk = riskLabel
+                    )
+
+                    // 🚀 Save to History table as well 
+                    repository.saveSessionToHistory(
+                        SaveSessionRequest(
+                            userId = updatedSession.userId.toString(),
+                            startTime = updatedSession.startTime,
+                            endTime = java.time.LocalDateTime.now().toString(),
+                            durationMinutes = actualDuration,
+                            distractions = updatedSession.distractions,
+                            stabilityScore = updatedSession.focusScore,
+                            avgDeepBlock = actualDuration, // Simple mapping
+                            cognitiveLoad = updatedSession.cognitiveLoad
+                        )
+                    )
+
+
+                    println("FocusRoutes: Session ${updatedSession.id} automatically saved to history for user ${updatedSession.userId}")
+
+                    call.respond(HttpStatusCode.OK, EndSessionResponse(
                         session = updatedSession,
                         burnoutRisk = riskLabel
                     ))
@@ -59,14 +97,30 @@ fun Route.focusRoutes() {
                 call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
             }
         }
+    }
 
-        // GET /sessions/history/{userId}
-        get("/history/{userId}") {
-            val userIdString = call.parameters["userId"]
+    // --- ANALYTICS ROUTES (Moved outside /sessions) ---
+    route("/analytics") {
+        get("/dashboard/{userId}") {
+            val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
             try {
-                val userId = UUID.fromString(userIdString)
-                val history: List<FocusSession> = DatabaseFactory.getShortHistory(userId)
-                call.respond(HttpStatusCode.OK, history)
+                val dashboardData = repository.getWeeklyDashboard(userId)
+                call.respond(dashboardData)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+            }
+        }
+
+        get("/distractions/{userId}") {
+            val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            try {
+                val distractions = DatabaseFactory.getDistractionsList(UUID.fromString(userId))
+                val appsJson = Json.encodeToString(distractions)
+                
+                // Call Python to get recommendation
+                val recommendation = getMLDistractionRecommendation(appsJson)
+                
+                call.respond(HttpStatusCode.OK, com.example.models.DistractionInsightsResponse(distractions, recommendation))
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
             }
@@ -74,9 +128,9 @@ fun Route.focusRoutes() {
     }
 }
 
+// Keep your ML function outside
 fun getMLBurnoutPrediction(duration: Double, hour: Int, distractions: Int, score: Int): String {
     return try {
-        // Build the command to run your Python script
         val pythonPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\venv\\Scripts\\python.exe"
         val scriptPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\predict_for_ktor.py"
 
@@ -85,7 +139,6 @@ fun getMLBurnoutPrediction(duration: Double, hour: Int, distractions: Int, score
             duration.toString(), hour.toString(), distractions.toString(), score.toString()
         ).start()
 
-        // Read the output (the number 0, 1, or 2)
         val result = process.inputStream.bufferedReader().readText().trim()
 
         when (result) {
@@ -95,7 +148,83 @@ fun getMLBurnoutPrediction(duration: Double, hour: Int, distractions: Int, score
             else -> "Low"
         }
     } catch (e: Exception) {
-        e.printStackTrace()
-        "Low" // Default to Low if AI fails
+        "Low"
+    }
+}
+
+fun getMLDistractionRecommendation(appsDataJson: String): String {
+    return try {
+        val pythonPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\venv\\Scripts\\python.exe"
+        val scriptPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\get_ai_recommendation.py"
+
+        val process = ProcessBuilder(
+            pythonPath, scriptPath, appsDataJson
+        ).start()
+
+        val result = process.inputStream.bufferedReader().readText().trim()
+        result.ifBlank {
+            "Consider limiting your usage of these apps during focus sessions."
+        }
+    } catch (e: Exception) {
+        "Reduce your time on distracting apps to stay more focused."
+    }
+}
+
+fun Route.sessionHistoryRoutes(repository: FocusRepository) {
+    route("/sessions") {
+        post("/save"){
+            try{
+                // Receive request from android
+                val request = call.receive<SaveSessionRequest>()
+                // Save to PostgreSQL history table
+                repository.saveSessionToHistory(request)
+
+                // Respond 201 Created
+                call.respond(HttpStatusCode.Created, "Session saved successfully to history")
+            }catch (e: Exception){
+                call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
+            }
+        }
+
+        // Added this block to fetch user history based on the user's request
+        get("/history/{userId}") {
+            val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            try {
+                val history = repository.getUserSessionHistory(userId)
+                call.respond(history)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+            }
+        }
+        // End of added history route
+
+        // Added this block to export PDF report via report_gen.py
+        get("/export/{userId}") {
+            val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            try {
+                val history = repository.getUserSessionHistory(userId)
+                
+                // Call Python to generate PDF
+                val pythonPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\venv\\Scripts\\python.exe"
+                val scriptPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\report_gen.py"
+                
+                val process = ProcessBuilder(pythonPath, scriptPath, Json.encodeToString(history)).start()
+                val fileName = process.inputStream.bufferedReader().readText().trim()
+                
+                val file = File(fileName)
+                if (file.exists()) {
+                    call.response.header(
+                        HttpHeaders.ContentDisposition,
+                        ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, "FocusReport.pdf").toString()
+                    )
+                    call.respondFile(file)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "PDF file was not generated.")
+                }
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
+            }
+        }
+        // End of PDF export route
     }
 }

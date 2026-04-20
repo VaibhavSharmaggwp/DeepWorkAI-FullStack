@@ -19,7 +19,8 @@ data class StartSessionRequest(val userId: String)
 @Serializable
 data class EndSessionRequest(
     val sessionId: String,
-    val distractions: Int
+    val distractions: Int,
+    val distractedApps: List<DistractionApp>? = null
 )
 
 @Serializable
