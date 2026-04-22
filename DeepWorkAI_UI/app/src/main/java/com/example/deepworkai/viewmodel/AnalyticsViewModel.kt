@@ -35,19 +35,28 @@ class AnalyticsViewModel : ViewModel() {
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
+    private val _selectedPeriod = mutableStateOf("Weekly")
+    val selectedPeriod: State<String> = _selectedPeriod
+
     init {
         val uId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
-        fetchAnalytics(uId)
+        fetchAnalytics(uId, "weekly")
     }
 
-    fun fetchAnalytics(userId: String) {
+    fun togglePeriod() {
+        val next = if (_selectedPeriod.value == "Weekly") "Monthly" else "Weekly"
+        _selectedPeriod.value = next
+        val uId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
+        fetchAnalytics(uId, next.lowercase())
+    }
+
+    fun fetchAnalytics(userId: String, period: String = "weekly") {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // Use BuildConfig.BACKEND_URL which defaults to http://10.0.2.2:8080
-                val baseUrl = BuildConfig.BACKEND_URL
+                val baseUrl = com.example.deepworkai.network.NetworkPreferences.backendUrl
                 val response: AnalyticsDashboard = KtorClient.httpClient
-                    .get("$baseUrl/analytics/dashboard/$userId")
+                    .get("${baseUrl}/analytics/dashboard/$userId?period=$period")
                     .body()
                 _uiState.value = response
             } catch (e: Exception) {

@@ -41,7 +41,11 @@ fun SessionSummaryScreen(
 ) {
     val currentSession = viewModel.currentSession.collectAsState().value
     val stability = currentSession?.session?.focusScore ?: 0
-    val duration = (currentSession?.session as? com.example.deepworkai.models.FocusSession)?.let { java.time.Duration.between(java.time.OffsetDateTime.parse(it.startTime), java.time.OffsetDateTime.parse(it.endTime ?: it.startTime)).toMinutes() } ?: 0
+    val duration = (currentSession?.session as? com.example.deepworkai.models.FocusSession)?.let { 
+        val start = java.time.LocalDateTime.parse(it.startTime)
+        val end = it.endTime?.let { e -> java.time.LocalDateTime.parse(e) } ?: start
+        java.time.Duration.between(start, end).toMinutes()
+    } ?: 0
     val distractionsCount = currentSession?.session?.distractions ?: 0
     val distractionLevel = if (distractionsCount > 5) "High" else if (distractionsCount > 2) "Medium" else "Low"
     val avgBlock = if (distractionsCount == 0 && duration > 0) duration else if (duration > 0) duration / (distractionsCount + 1) else 0

@@ -22,8 +22,10 @@ fun Route.allRoutes(repository: FocusRepository) {
         post("/start") {
             try {
                 val request = call.receive<StartSessionRequest>()
+                println("FocusRoutes: Starting session for user ${request.userId}")
                 val session = DatabaseFactory.startFocusSession(UUID.fromString(request.userId))
                 if (session != null) {
+                    println("FocusRoutes: Session started with ID ${session.id}")
                     call.respond(HttpStatusCode.Created, session)
                 } else {
                     call.respond(HttpStatusCode.InternalServerError, "Could not start session")
@@ -36,11 +38,13 @@ fun Route.allRoutes(repository: FocusRepository) {
         post("/end") {
             try {
                 val request = call.receive<EndSessionRequest>()
+                println("FocusRoutes: Ending session ${request.sessionId} with ${request.distractions} distractions")
                 val updatedSession = DatabaseFactory.endFocusSession(request.sessionId, request.distractions)
 
                 if (updatedSession != null) {
-                    val startDateTime = java.time.OffsetDateTime.parse(updatedSession.startTime)
-                    val endDateTime = java.time.OffsetDateTime.now()
+                    println("FocusRoutes: Session found, calculating risk and saving history...")
+                    val startDateTime = java.time.LocalDateTime.parse(updatedSession.startTime)
+                    val endDateTime = java.time.LocalDateTime.now()
                     val actualDuration = java.time.Duration.between(startDateTime, endDateTime).toMinutes().toInt()
                     val currentHour = endDateTime.hour
 
@@ -103,10 +107,16 @@ fun Route.allRoutes(repository: FocusRepository) {
     route("/analytics") {
         get("/dashboard/{userId}") {
             val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            val period = call.request.queryParameters["period"] ?: "weekly"
+            val limit = if (period.lowercase() == "monthly") 30 else 7
+            
+            println("FocusRoutes: Fetching $period dashboard for user $userId (limit=$limit)")
             try {
-                val dashboardData = repository.getWeeklyDashboard(userId)
-                call.respond(dashboardData)
+                val dashboard = repository.getDashboard(userId, limit)
+                call.respond(dashboard)
             } catch (e: Exception) {
+                println("FocusRoutes: ERROR fetching dashboard: ${e.message}")
+                e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
             }
         }
@@ -189,10 +199,14 @@ fun Route.sessionHistoryRoutes(repository: FocusRepository) {
         // Added this block to fetch user history based on the user's request
         get("/history/{userId}") {
             val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest)
+            println("FocusRoutes: Fetching history for user $userId")
             try {
                 val history = repository.getUserSessionHistory(userId)
+                println("FocusRoutes: Found ${history.size} sessions for $userId")
                 call.respond(history)
             } catch (e: Exception) {
+                println("FocusRoutes: ERROR fetching history: ${e.message}")
+                e.printStackTrace()
                 call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
             }
         }

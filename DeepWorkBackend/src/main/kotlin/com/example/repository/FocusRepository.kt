@@ -87,14 +87,13 @@ class FocusRepository {
         }
     }
 
-    suspend fun getWeeklyDashboard(userId: String): AnalyticsDashboard = dbQuery {
+    suspend fun getDashboard(userId: String, days: Int = 7): AnalyticsDashboard = dbQuery {
         val uId = UUID.fromString(userId)
         val todayDate = LocalDate.now()
 
-        val existingCount = DailyAnalyticsTable.select { DailyAnalyticsTable.userId eq uId }.count()
-
         // 1. Fetch History for Python AI Insights
         val history = FocusSessionsTable.select { FocusSessionsTable.userId eq uId }
+            .limit(50) // Limit input to ML for performance
             .map {
                 HistoryEntry(
                     focus_score = it[FocusSessionsTable.focusScore],
@@ -106,19 +105,19 @@ class FocusRepository {
         // 2. Call Python Insight Engine
         val aiMap = getAIAnalyticsInsights(Json.encodeToString(history))
 
-        // 3. Fetch last 7 days of entries for Charts
-        val lastSevenDays = DailyAnalyticsTable
+        // 3. Fetch last N days of entries for Charts
+        val historyEntries = DailyAnalyticsTable
             .select { DailyAnalyticsTable.userId eq uId }
             .orderBy(DailyAnalyticsTable.statDate, SortOrder.DESC)
-            .limit(7)
+            .limit(days)
             .map { it }
             .reversed() // Order them from older -> newer
 
-        val today = lastSevenDays.lastOrNull()
+        val today = historyEntries.lastOrNull()
 
         AnalyticsDashboard(
-            weeklyScores = lastSevenDays.map { it[DailyAnalyticsTable.avgFocusScore] },
-            weeklyDeepMinutes = lastSevenDays.map { it[DailyAnalyticsTable.totalDeepMinutes] },
+            weeklyScores = historyEntries.map { it[DailyAnalyticsTable.avgFocusScore] },
+            weeklyDeepMinutes = historyEntries.map { it[DailyAnalyticsTable.totalDeepMinutes] },
             totalDeepMinutes = today?.get(DailyAnalyticsTable.totalDeepMinutes) ?: 0,
             contextSwitches = today?.get(DailyAnalyticsTable.contextSwitches) ?: 0,
             heatmap = today?.get(DailyAnalyticsTable.distractionHeatmap)

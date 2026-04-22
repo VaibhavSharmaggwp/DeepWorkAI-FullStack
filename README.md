@@ -1,36 +1,60 @@
-# DeepWorkAI-FullStack
+# DeepWorkAI: The Ultimate Privacy-First Productivity Ecosystem 🚀
 
-This repository contains the full-stack code for DeepWorkAI, separated into three main components:
-1. **[UI] DeepWorkAI_UI**: The Android/Kotlin Jetpack Compose frontend application.
-2. **[Backend] DeepWorkBackend**: The Ktor-based Kotlin backend managing the API, database connectivity, and authentication.
-3. **[ML] deepwork_ml**: The Python machine-learning service with its models and scripts.
+DeepWorkAI is a sophisticated, full-stack productivity suite designed for knowledge workers who want to master their focus. By combining real-time app tracking, machine learning-driven insights, and a sleek, modern interface, DeepWorkAI helps you enter and maintain the "Flow State" while protecting your privacy.
 
-## Setup Instructions
+## ✨ Key Features
 
-### 1. UI (Android App)
-- Open `DeepWorkAI_UI` in Android Studio.
-- Create a `local.properties` file in `DeepWorkAI_UI/local.properties` (if it does not exist) and add the following lines to run locally:
-  ```properties
-  BACKEND_IP=10.0.2.2
-  GOOGLE_CLIENT_ID=your_google_client_id_here
-  ```
-- Sync Project with Gradle Files and Run on an Emulator or Physical Device.
+### 📱 Android Application (Jetpack Compose)
+*   **Intelligent Session Tracking**: Start and stop deep work sessions with a single tap.
+*   **Dynamic Analytics Dashboard**: Visualize your productivity with beautiful charts for Weekly and Monthly performance.
+*   **Cognitive Load Monitoring**: Real-time tracking of your mental stamina based on focus duration and intensity.
+*   **Smart Distraction Whitelisting**: Select only the apps you need for work; DeepWorkAI monitors the rest without invading your privacy.
+*   **AI Insights**: Personalized feedback on your focus patterns, consistency, and context-switching habits.
+*   **Session History**: A detailed log of every deep work session, complete with stability scores and burnout risk assessments.
 
-### 2. Backend (Ktor)
-- Open `DeepWorkBackend` in IntelliJ IDEA or Android Studio.
-- Create a `.env` file in the root of `DeepWorkBackend/` and provide the JWT Secret:
-  ```env
-  JWT_SECRET=your_secret_key_here
-  ```
-- Configure your local PostgreSQL database credentials inside the project as needed, or provide them via additional `.env` variables.
-- Run the `Application.kt` `main` file or run `.\gradlew run`.
+### ⚙️ Robust Backend (Ktor)
+*   **Scalable Architecture**: Built with Kotlin and Ktor for high performance and low latency.
+*   **Secure Authentication**: JWT-based security and Google OAuth integration for seamless, safe login.
+*   **PostgreSQL Persistence**: Reliable data storage for all your focus history and analytics.
+*   **Python ML Bridge**: Seamlessly communicates with the machine learning service for advanced data processing.
 
-### 3. Machine Learning Service
-- Navigate to the `deepwork_ml` folder in your terminal.
-- Create a virtual environment and install the required dependencies:
-  ```bash
-  python -m venv venv
-  .\venv\Scripts\activate
-  pip install -r requirements.txt
-  ```
-- Make sure to add any requisite `.env` files internally for ML-specific secrets.
+### 🧠 Machine Learning Service (Python)
+*   **Burnout Risk Prediction**: Analyzes session duration and distraction frequency to warn you before you overwork.
+*   **Distraction Recommendations**: Identifies which apps are your biggest "focus killers" and suggests interventions.
+*   **Flow State Analysis**: Uses data-driven models to predict your "Cognitive Peak" hours.
+*   **Automated PDF Reporting**: Generates comprehensive focus reports to track your long-term progress.
+
+## 🏗️ Project Structure
+
+The project is divided into three specialized subfolders:
+
+```
+DeepWorkAI-FullStack/
+├── DeepWorkAI_UI/      # Android Frontend (Kotlin/Compose)
+├── DeepWorkBackend/    # Ktor REST API & Database Layer
+└── deepwork_ml/        # Python ML Models & Analysis Scripts
+```
+
+## 🛠️ Technology Stack
+
+*   **Frontend**: Kotlin, Jetpack Compose, Retrofit, Coroutines, Vico Charts.
+*   **Backend**: Ktor, Exposed ORM, PostgreSQL, JWT, BCrypt.
+*   **ML/AI**: Python, Scikit-learn, Pandas, HuggingFace (Inference API), FPDF.
+
+## 🚀 Getting Started
+
+### Prerequisites
+*   Android Studio (Ladybug or newer)
+*   IntelliJ IDEA
+*   Python 3.10+
+*   PostgreSQL 14+
+
+### Setup
+
+1.  **UI**: Open `DeepWorkAI_UI` in Android Studio, sync Gradle, and run.
+2.  **Backend**: Configure your `.env` in `DeepWorkBackend` (see `.env.example`) and run `Application.kt`.
+3.  **ML**: Install requirements in `deepwork_ml` using `pip install -r requirements.txt`.
+
+---
+
+Developed with ❤️ by [VaibhavSharmaggwp](https://github.com/VaibhavSharmaggwp)

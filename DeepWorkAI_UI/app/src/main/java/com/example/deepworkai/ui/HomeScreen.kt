@@ -200,9 +200,13 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            GridMetrics(onMetricsClick = {
-                navController?.navigate(Screen.DistractionInsights.route)
-            })
+            val contextSwitches = analyticsViewModel.uiState.value?.contextSwitches ?: 0
+            GridMetrics(
+                distractionsCount = contextSwitches.toString(),
+                onMetricsClick = {
+                    navController?.navigate(Screen.DistractionInsights.route)
+                }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -665,7 +669,7 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 }
 
 @Composable
-fun GridMetrics(onMetricsClick: () -> Unit = {}) {
+fun GridMetrics(distractionsCount: String = "0", onMetricsClick: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         // Focus Stability Card
@@ -684,7 +688,7 @@ fun GridMetrics(onMetricsClick: () -> Unit = {}) {
                 onMetricsClick()
             },
             title = "DISTRACTIONS",
-            value = "12",
+            value = distractionsCount,
             subValue = "spikes",
             isWarning = true
         )

@@ -47,13 +47,20 @@ class SessionViewModel : ViewModel() {
     fun fetchHistory(userId: String) {
         viewModelScope.launch {
             try {
+                println("SessionViewModel: Fetching history for user $userId from ${com.example.deepworkai.network.NetworkPreferences.backendUrl}")
                 val response = KtorClient.httpClient.get(
                     "${com.example.deepworkai.network.NetworkPreferences.backendUrl}/sessions/history/$userId"
                 )
+                println("SessionViewModel: Received history response status: ${response.status}")
                 if (response.status == HttpStatusCode.OK) {
-                    _history.value = response.body()
+                    val historyList: List<FocusSession> = response.body()
+                    println("SessionViewModel: Successfully fetched ${historyList.size} history items")
+                    _history.value = historyList
+                } else {
+                    println("SessionViewModel: Failed to fetch history. Code: ${response.status}")
                 }
             } catch (e: Exception) {
+                println("SessionViewModel: CRITICAL ERROR fetching history: ${e.message}")
                 e.printStackTrace()
             }
         }

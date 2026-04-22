@@ -27,11 +27,14 @@ def get_ai_recommendation(data):
     
     # Fallback response if API fails
     try:
-        apps = json.loads(data)
-        top_app = apps[0]["appName"] if apps else "certain apps"
-        return f"You spent a significant amount of time on {top_app}. Studies show the average youth spends ~2 hours daily on such content. Consider limiting usage during focus hours to improve productivity."
-    except:
-        return "Consider limiting your usage of these apps to improve focus."
+        sessions = json.loads(data)
+        if sessions and isinstance(sessions, list) and "apps" in sessions[0] and len(sessions[0]["apps"]) > 0:
+            top_app = sessions[0]["apps"][0]["appName"]
+        else:
+            top_app = "certain apps"
+        return f"You were distracted by {top_app}. Did you know that it takes an average of 23 minutes to regain deep focus after an interrution? Try to use less {top_app} during study hours."
+    except Exception as e:
+        return "Consider limiting your usage of distracting apps to stay more focused."
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

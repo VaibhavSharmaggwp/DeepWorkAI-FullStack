@@ -1,6 +1,7 @@
 package com.example.deepworkai.ui
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,8 +47,10 @@ fun AnalyticsScreen(
     AnalyticsContent(
         data = data,
         isLoading = isLoading,
+        selectedPeriod = viewModel.selectedPeriod.value,
         navController = navController,
-        onRetry = { viewModel.fetchAnalytics(uId) }
+        onTogglePeriod = { viewModel.togglePeriod() },
+        onRetry = { viewModel.fetchAnalytics(uId, viewModel.selectedPeriod.value.lowercase()) }
     )
 }
 
@@ -55,7 +58,9 @@ fun AnalyticsScreen(
 fun AnalyticsContent(
     data: AnalyticsDashboard?,
     isLoading: Boolean,
+    selectedPeriod: String = "Weekly",
     navController: NavController? = null,
+    onTogglePeriod: () -> Unit = {},
     onRetry: () -> Unit = {}
 ) {
     Scaffold(
@@ -82,14 +87,15 @@ fun AnalyticsContent(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    TimeToggleSection()
+                    TimeToggleSection(selectedPeriod = selectedPeriod, onToggle = onTogglePeriod)
 
                     Spacer(modifier = Modifier.height(32.dp))
 
                     FocusScoreCard(
                         score = data.todayScore,
                         scoreTrend = data.trend,
-                        weeklyScores = data.weeklyScores
+                        weeklyScores = data.weeklyScores,
+                        isMonthly = selectedPeriod == "Monthly"
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -220,31 +226,37 @@ fun AnalyticsHeader() {
 }
 
 @Composable
-fun TimeToggleSection() {
+fun TimeToggleSection(selectedPeriod: String, onToggle: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .background(Color(0xFF161B22), RoundedCornerShape(28.dp))
             .padding(4.dp)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onToggle() }
     ) {
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(28.dp))
-                .background(Color(0xFF2563EB)),
+                .background(if (selectedPeriod == "Weekly") Color(0xFF2563EB) else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
-            Text("Weekly", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text("Weekly", color = if (selectedPeriod == "Weekly") Color.White else Color(0xFF94A3B8), fontWeight = FontWeight.SemiBold)
         }
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(28.dp))
+                .background(if (selectedPeriod == "Monthly") Color(0xFF2563EB) else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
-            Text("Monthly", color = Color(0xFF94A3B8), fontWeight = FontWeight.SemiBold)
+            Text("Monthly", color = if (selectedPeriod == "Monthly") Color.White else Color(0xFF94A3B8), fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -253,7 +265,8 @@ fun TimeToggleSection() {
 fun FocusScoreCard(
     score: Int = 84,
     scoreTrend: String = "+12%",
-    weeklyScores: List<Int> = listOf(40, 60, 55, 70, 84, 80, 92)
+    weeklyScores: List<Int> = listOf(40, 60, 55, 70, 84, 80, 92),
+    isMonthly: Boolean = false
 ) {
     Surface(
         color = Color(0xFF161B22).copy(alpha = 0.6f),
@@ -284,8 +297,9 @@ fun FocusScoreCard(
                     color = Color(0xFF1E293B),
                     shape = RoundedCornerShape(12.dp)
                 ) {
+                    val avg = if (weeklyScores.isNotEmpty()) weeklyScores.average().toInt() else 0
                     Text(
-                        "Avg: 72",
+                        "Avg: $avg",
                         color = Color(0xFF94A3B8),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         fontSize = 12.sp
@@ -301,123 +315,112 @@ fun FocusScoreCard(
                     .fillMaxWidth()
                     .height(160.dp)
             ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val width = size.width
-                    val height = size.height
-                    
-                    // Draw horizontal grid lines (dotted)
-                    val intervals = 4
-                    for (i in 0..intervals) {
-                        val y = height * i / intervals
-                        drawLine(
-                            color = Color.White.copy(alpha = 0.05f),
-                            start = Offset(0f, y),
-                            end = Offset(width, y),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
+                if (weeklyScores.isEmpty()) {
+                  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                      Text("NO DATA RECORDED OF LAST ${if(isMonthly) 30 else 7} DAYS", color = Color(0xFF475569), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                  }
+                } else {
+                  Canvas(modifier = Modifier.fillMaxSize()) {
+                      val width = size.width
+                      val height = size.height
+                      
+                      // Draw horizontal grid lines (dotted)
+                      val intervals = 4
+                      for (i in 0..intervals) {
+                          val y = height * i / intervals
+                          drawLine(
+                              color = Color.White.copy(alpha = 0.05f),
+                              start = Offset(0f, y),
+                              end = Offset(width, y),
+                              strokeWidth = 1.dp.toPx()
+                          )
+                      }
 
-                    // Calculate points based on dynamic data
-                    val points = weeklyScores.mapIndexed { index, s ->
-                        Offset(
-                            x = width * (index.toFloat() / (weeklyScores.size - 1).coerceAtLeast(1)),
-                            y = height * (1f - (s.toFloat() / 100f))
-                        )
-                    }
+                      // Calculate points based on dynamic data
+                      val points = weeklyScores.mapIndexed { index, s ->
+                          Offset(
+                              x = width * (index.toFloat() / (weeklyScores.size - 1).coerceAtLeast(1)),
+                              y = height * (1f - (s.toFloat() / 100f))
+                          )
+                      }
 
-                    val path = Path().apply {
-                        if (points.isNotEmpty()) {
-                            moveTo(points[0].x, points[0].y)
-                            for (i in 1 until points.size) {
-                                val prev = points[i - 1]
-                                val curr = points[i]
-                                val cp1 = Offset(prev.x + (curr.x - prev.x) / 2, prev.y)
-                                val cp2 = Offset(prev.x + (curr.x - prev.x) / 2, curr.y)
-                                cubicTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y)
-                            }
-                        }
-                    }
+                      val path = Path().apply {
+                          if (points.isNotEmpty()) {
+                              moveTo(points[0].x, points[0].y)
+                              for (i in 1 until points.size) {
+                                  val prev = points[i - 1]
+                                  val curr = points[i]
+                                  val cp1 = Offset(prev.x + (curr.x - prev.x) / 2, prev.y)
+                                  val cp2 = Offset(prev.x + (curr.x - prev.x) / 2, curr.y)
+                                  cubicTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y)
+                              }
+                          }
+                      }
 
-                    // Draw Gradient Fill
-                    val fillPath = Path().apply {
-                        addPath(path)
-                        lineTo(width, height)
-                        lineTo(0f, height)
-                        close()
-                    }
-                    drawPath(
-                        path = fillPath,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF2563EB).copy(alpha = 0.3f), Color.Transparent)
-                        )
-                    )
+                      // Draw Gradient Fill
+                      val fillPath = Path().apply {
+                          addPath(path)
+                          lineTo(width, height)
+                          lineTo(0f, height)
+                          close()
+                      }
+                      drawPath(
+                          path = fillPath,
+                          brush = Brush.verticalGradient(
+                              colors = listOf(Color(0xFF2563EB).copy(alpha = 0.3f), Color.Transparent)
+                          )
+                      )
 
-                    // Draw Curve Stroke
-                    drawPath(
-                        path = path,
-                        color = Color(0xFF3B82F6),
-                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-                    )
+                      // Draw Curve Stroke
+                      drawPath(
+                          path = path,
+                          color = Color(0xFF3B82F6),
+                          style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                      )
 
-                    // Draw points
-                    points.forEachIndexed { index, point ->
-                        if (index > 0 && index < points.size - 1) {
-                            drawCircle(
-                                color = Color(0xFF3B82F6),
-                                radius = 4.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color(0xFF161B22),
-                                radius = 2.dp.toPx(),
-                                center = point
-                            )
-                        }
-                    }
+                      // Draw points
+                      points.forEachIndexed { index, point ->
+                          if (index > 0 && index < points.size - 1) {
+                              drawCircle(
+                                  color = Color(0xFF3B82F6),
+                                  radius = 4.dp.toPx(),
+                                  center = point
+                              )
+                          }
+                      }
 
-                    // Highlight Sat Point
-                    if (points.size >= 2) {
-                        val satPoint = points[points.size - 2]
-                        drawCircle(
-                            color = Color.White,
-                            radius = 6.dp.toPx(),
-                            center = satPoint
-                        )
-                        drawCircle(
-                            color = Color(0xFF3B82F6),
-                            radius = 4.dp.toPx(),
-                            center = satPoint
-                        )
-                    } else if (points.isNotEmpty()) {
-                        val satPoint = points[0]
-                        drawCircle(
-                            color = Color.White,
-                            radius = 6.dp.toPx(),
-                            center = satPoint
-                        )
-                        drawCircle(
-                            color = Color(0xFF3B82F6),
-                            radius = 4.dp.toPx(),
-                            center = satPoint
-                        )
-                    }
-                }
+                      // Highlight Lat Point
+                      if (points.isNotEmpty()) {
+                          val lastPoint = points.last()
+                          drawCircle(
+                              color = Color.White,
+                              radius = 6.dp.toPx(),
+                              center = lastPoint
+                          )
+                          drawCircle(
+                              color = Color(0xFF3B82F6),
+                              radius = 4.dp.toPx(),
+                              center = lastPoint
+                          )
+                      }
+                  }
 
-                // Tooltip for Sat
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(end = 45.dp, top = 10.dp),
-                    color = Color(0xFF2563EB),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        "92",
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                  // Tooltip for Current
+                  Surface(
+                      modifier = Modifier
+                          .align(Alignment.TopEnd)
+                          .padding(end = 10.dp, top = 10.dp),
+                      color = Color(0xFF2563EB),
+                      shape = RoundedCornerShape(8.dp)
+                  ) {
+                      Text(
+                          "${score}",
+                          color = Color.White,
+                          modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                          fontSize = 12.sp,
+                          fontWeight = FontWeight.Bold
+                      )
+                  }
                 }
             }
 
@@ -427,8 +430,13 @@ fun FocusScoreCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach {
-                    Text(it, color = Color(0xFF94A3B8), fontSize = 12.sp)
+                if (isMonthly) {
+                    Text("30 Days Ago", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                    Text("Today", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                } else {
+                    listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach {
+                        Text(it, color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -741,5 +749,5 @@ fun AnalyticsScreenPreview() {
         todayScore = 84,
         trend = "+12%"
     )
-    AnalyticsContent(data = mockData, isLoading = false)
+    AnalyticsContent(data = mockData, isLoading = false, selectedPeriod = "Weekly")
 }

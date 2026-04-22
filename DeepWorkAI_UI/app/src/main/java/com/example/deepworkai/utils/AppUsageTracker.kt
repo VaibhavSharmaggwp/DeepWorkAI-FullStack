@@ -71,8 +71,9 @@ object AppUsageTracker {
 
         for ((pkgName, timeMs) in usageMap) {
             val minutes = Math.ceil(timeMs / 60000.0).toInt().coerceAtLeast(1)
-            // Only process if it's in user's whitelist
-            if (timeMs > 1000 && whitelistedPackages.contains(pkgName)) {
+            val isSystemOrLauncher = pkgName.contains("launcher") || pkgName.contains("systemui") || pkgName == context.packageName
+            // Process any app that is used for more than 1 second, ignoring system/launcher
+            if (timeMs > 1000 && !isSystemOrLauncher) {
                 val appName = try {
                     val appInfo = packageManager.getApplicationInfo(pkgName, 0)
                     packageManager.getApplicationLabel(appInfo).toString()
