@@ -20,7 +20,8 @@ data class StartSessionRequest(val userId: String)
 data class EndSessionRequest(
     val sessionId: String,
     val distractions: Int,
-    val distractedApps: List<DistractionApp>? = null
+    val distractedApps: List<DistractionApp>? = null,
+    val targetDurationMinutes: Int = 25
 )
 
 @Serializable

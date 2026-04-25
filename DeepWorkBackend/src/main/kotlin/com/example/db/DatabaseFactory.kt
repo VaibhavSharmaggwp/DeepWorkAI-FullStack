@@ -59,7 +59,7 @@ object DatabaseFactory{
         } else null
     }
 
-    suspend fun endFocusSession(sessionId: String, distractions: Int): FocusSession? = dbQuery {
+    suspend fun endFocusSession(sessionId: String, distractions: Int, targetDurationMinutes: Int = 25): FocusSession? = dbQuery {
         val sId = UUID.fromString(sessionId)
         val endTime = LocalDateTime.now()
 
@@ -69,18 +69,24 @@ object DatabaseFactory{
         if (existingSession != null) {
             val startTime = existingSession[FocusSessionsTable.startTime]
 
-            // 2. Simple Math: Score starts at 100 and drops per distraction
-            val durationMinutes = java.time.Duration.between(startTime, endTime).toMinutes()
-            val calculatedScore = if (durationMinutes > 0) {
-                (100 - (distractions * 5)).coerceIn(0, 100)
-            } else 100
+            // 2. Focus Score Logic:
+            // Base score starts at 100, reduced by 5 points per distraction
+            val baseScore = (100 - (distractions * 5)).coerceIn(0, 100)
+            
+            // Completion Penalty: If finished early, multiply by completion ratio
+            val actualDuration = java.time.Duration.between(startTime, endTime).toMinutes()
+            val targetMinutes = targetDurationMinutes.coerceAtLeast(1)
+            val completionRatio = (actualDuration.toDouble() / targetMinutes.toDouble()).coerceIn(0.0, 1.0)
+            
+            // Final score accounts for both distractions and time commitment
+            val calculatedScore = (baseScore * completionRatio).toInt().coerceIn(0, 100)
 
             // 3. Update the row
             val updated = FocusSessionsTable.update({ FocusSessionsTable.id eq sId }) {
                 it[FocusSessionsTable.endTime] = endTime
                 it[FocusSessionsTable.distractions] = distractions
                 it[FocusSessionsTable.focusScore] = calculatedScore
-                it[FocusSessionsTable.durationMinutes] = durationMinutes.toInt()
+                it[FocusSessionsTable.durationMinutes] = actualDuration.toInt()
             }
 
             if (updated > 0) {
@@ -134,11 +140,25 @@ object DatabaseFactory{
             
         val grouped = distLogs.groupBy { it[DistractionLogsTable.sessionId] }
         
-        var counter = 1
         val resultList = mutableListOf<com.example.models.SessionDistractions>()
-        
+        val dateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMM dd, yyyy")
+        val timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+
+        var counter = 1
         for ((sessId, rows) in grouped) {
-            if (counter > 10) break
+            if (counter > 15) break
+            if (sessId == null) continue // Skip logs without a session
+            
+            val firstRow = rows.first()
+            
+            // Fetch session info separately to avoid complex join issues with UUID/String mismatch
+            val sessionInfo = try {
+                FocusSessionsTable.select { FocusSessionsTable.id eq UUID.fromString(sessId) }.singleOrNull()
+            } catch (e: Exception) { null }
+            
+            val startTime = sessionInfo?.get(FocusSessionsTable.startTime) ?: firstRow[DistractionLogsTable.createdAt]
+            val dateStr = startTime.format(dateFormatter)
+            val timeStr = startTime.format(timeFormatter)
             
             // Combine duplicate apps in same session
             val appsMap = mutableMapOf<String, Int>()
@@ -153,9 +173,9 @@ object DatabaseFactory{
             
             resultList.add(
                 com.example.models.SessionDistractions(
-                    sessionTitle = "Session $counter",
-                    date = "Recent",
-                    startTime = "",
+                    sessionTitle = "Session $timeStr",
+                    date = dateStr,
+                    startTime = timeStr,
                     apps = appsList
                 )
             )

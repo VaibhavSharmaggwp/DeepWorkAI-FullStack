@@ -22,11 +22,11 @@ class FocusService {
     }
 
     // This is the ONLY endSession function you need now
-    suspend fun endSession(sessionId: String, distractions: Int, distractedApps: List<DistractionApp>? = null): EndSessionResponse? {
+    suspend fun endSession(sessionId: String, distractions: Int, distractedApps: List<DistractionApp>? = null, targetDuration: Int = 25): EndSessionResponse? {
         return try {
             KtorClient.httpClient.post("$BASE_URL/end") {
                 contentType(ContentType.Application.Json)
-                setBody(EndSessionRequest(sessionId, distractions, distractedApps))
+                setBody(EndSessionRequest(sessionId, distractions, distractedApps, targetDuration))
             }.body() // This now captures both session and burnoutRisk
         } catch (e: Exception) {
             e.printStackTrace()

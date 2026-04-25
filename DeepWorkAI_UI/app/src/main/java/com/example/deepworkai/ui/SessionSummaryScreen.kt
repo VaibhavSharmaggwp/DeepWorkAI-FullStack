@@ -234,7 +234,26 @@ fun FocusStabilityCard(stability: Int) {
                 }
             }
             Spacer(modifier = Modifier.height(32.dp))
-            Text("Excellent work! You maintained high focus depth.", color = Color(0xFF94A3B8), fontSize = 16.sp, textAlign = TextAlign.Center, lineHeight = 24.sp)
+            val feedbackMessage = when {
+                stability < 25 -> "Don't give up! Every small step builds your focus muscle. Try a shorter target next time."
+                stability < 50 -> "Good start, but you can do better. Try to minimize distractions in your next session."
+                stability < 75 -> "Good work! You're finding your rhythm. Keep pushing for that deep flow state."
+                else -> "Excellent work! You maintained high focus depth and reached your target."
+            }
+            val feedbackColor = when {
+                stability < 25 -> Color(0xFFF87171) // Reddish
+                stability < 50 -> Color(0xFFFBBF24) // Yellowish
+                stability < 75 -> Color(0xFF34D399) // Greenish
+                else -> Color(0xFF3B82F6) // Blue
+            }
+
+            Text(
+                text = feedbackMessage,
+                color = Color(0xFF94A3B8),
+                fontSize = 16.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp
+            )
         }
     }
 }

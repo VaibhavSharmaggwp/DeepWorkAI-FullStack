@@ -39,7 +39,7 @@ fun Route.allRoutes(repository: FocusRepository) {
             try {
                 val request = call.receive<EndSessionRequest>()
                 println("FocusRoutes: Ending session ${request.sessionId} with ${request.distractions} distractions")
-                val updatedSession = DatabaseFactory.endFocusSession(request.sessionId, request.distractions)
+                val updatedSession = DatabaseFactory.endFocusSession(request.sessionId, request.distractions, request.targetDurationMinutes)
 
                 if (updatedSession != null) {
                     println("FocusRoutes: Session found, calculating risk and saving history...")

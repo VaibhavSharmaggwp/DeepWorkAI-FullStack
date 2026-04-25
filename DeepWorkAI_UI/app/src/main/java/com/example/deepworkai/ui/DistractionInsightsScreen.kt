@@ -100,59 +100,86 @@ fun DistractionInsightsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = DeepWorkBlue)
-                }
-            } else {
-                if (!isTrackingSetupComplete) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        M3Text(
-                            "Start a focus session and select apps to track distractions.",
-                            color = DeepWorkTextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                } else {
-                    val data = insightsData
-                    if (data == null || data.sessions.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            M3Text(
-                                "Great job! No distractions recorded in your sessions 🎯",
-                                color = Color(0xFF4ADE80),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            itemsIndexed(data.sessions) { index, session ->
-                                SessionGroupCard(session = session, index = index)
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = DeepWorkBlue)
+        }
+    } else {
+        val data = insightsData
+        if (data == null) {
+            // Error State
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    M3Text("Could not load insights", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    M3Text("Check your connection and try again", color = DeepWorkTextSecondary)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { 
+                            isLoading = true
+                            navController.navigate(Screen.DistractionInsights.route) {
+                                popUpTo(Screen.DistractionInsights.route) { inclusive = true }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // AI Insight Container
-                        AIInsightCard(data.recommendation)
-                        
-                        Spacer(modifier = Modifier.height(24.dp))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue)
+                    ) {
+                        M3Text("Retry", color = Color.White)
                     }
                 }
             }
+        } else if (data.sessions.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+                    M3Text(
+                        text = "🎯",
+                        fontSize = 48.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    M3Text(
+                        "Great job! No distractions recorded in your sessions.",
+                        color = Color(0xFF4ADE80),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    M3Text(
+                        "You've been staying focused! Keep it up to build your streak.",
+                        color = DeepWorkTextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                itemsIndexed(data.sessions) { index, session ->
+                    SessionGroupCard(session = session, index = index)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // AI Insight Container
+            if (data.recommendation.isNotEmpty()) {
+                AIInsightCard(data.recommendation)
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+}
 }
 
 @Composable
 fun SessionGroupCard(session: SessionDistractions, index: Int) {
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(index * 150L)
+        delay(index * 100L) // Slightly faster animation
         isVisible = true
     }
 
@@ -161,25 +188,36 @@ fun SessionGroupCard(session: SessionDistractions, index: Int) {
         enter = slideInHorizontally(initialOffsetX = { 50 }, animationSpec = tween(400)) + fadeIn(animationSpec = tween(400))
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = DeepWorkSurface)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                M3Text(
-                    text = session.sessionTitle,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    M3Text(
+                        text = session.sessionTitle,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    M3Text(
+                        text = session.date,
+                        color = DeepWorkTextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
 
                 val totalUsage = session.apps.sumOf { it.usageTime }.toFloat().coerceAtLeast(1f)
 
                 session.apps.forEachIndexed { appIndex, app ->
                     AppUsageRow(app = app, progress = app.usageTime / totalUsage, isTop = appIndex == 0)
                     if (appIndex < session.apps.size - 1) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -194,48 +232,65 @@ fun AppUsageRow(app: DistractionApp, progress: Float, isTop: Boolean) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Determine domain for Clearbit Logo API
-        val domain = when (app.appName.lowercase().replace(" ", "")) {
-            "instagram" -> "instagram.com"
-            "youtube" -> "youtube.com"
-            "facebook" -> "facebook.com"
-            "tiktok" -> "tiktok.com"
-            "twitter" -> "twitter.com"
-            "whatsapp" -> "whatsapp.com"
-            "chrome" -> "google.com/chrome"
-            "gmail" -> "mail.google.com"
-            "maps" -> "maps.google.com"
-            else -> "${app.appName.lowercase().replace(" ", "")}.com"
+        val domain = remember(app.appName) {
+            val name = app.appName.lowercase().replace(" ", "")
+            when {
+                name.contains("instagram") -> "instagram.com"
+                name.contains("youtube") -> "youtube.com"
+                name.contains("facebook") -> "facebook.com"
+                name.contains("tiktok") -> "tiktok.com"
+                name.contains("twitter") -> "twitter.com"
+                name.contains("x") && name.length <= 2 -> "twitter.com"
+                name.contains("whatsapp") -> "whatsapp.com"
+                name.contains("chrome") -> "google.com"
+                name.contains("gmail") -> "gmail.com"
+                name.contains("netflix") -> "netflix.com"
+                name.contains("spotify") -> "spotify.com"
+                name.contains("linkedin") -> "linkedin.com"
+                name.contains("reddit") -> "reddit.com"
+                name.contains("snapchat") -> "snapchat.com"
+                name.contains(".") -> name // Likely already a package name or domain
+                else -> "$name.com"
+            }
         }
 
         // Logo
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data("https://logo.clearbit.com/$domain")
-                .crossfade(true)
-                .build(),
-            contentDescription = "${app.appName} logo",
-            contentScale = ContentScale.Crop,
+        Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(40.dp)
                 .clip(CircleShape)
-                .background(Color.White)
-        )
+                .background(Color.White.copy(alpha = 0.05f)),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data("https://logo.clearbit.com/$domain")
+                    .crossfade(true)
+                    .error(com.example.deepworkai.R.drawable.ic_launcher_foreground) // Fallback icon
+                    .build(),
+                contentDescription = "${app.appName} logo",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+            )
+        }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             M3Text(
                 text = app.appName, 
                 color = Color.White, 
-                fontSize = 14.sp, 
-                fontWeight = FontWeight.Medium
+                fontSize = 15.sp, 
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             
             // Progress bar representing % of total distraction
-            Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color.White.copy(alpha=0.1f))) {
-                Box(modifier = Modifier.fillMaxWidth(progress).height(4.dp).background(
-                    if (isTop) Color(0xFFEF4444) else DeepWorkBlue
+            Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(Color.White.copy(alpha=0.05f))) {
+                Box(modifier = Modifier.fillMaxWidth(progress).height(6.dp).background(
+                    if (isTop) Color(0xFFF87171) else DeepWorkBlue
                 ))
             }
         }
@@ -244,12 +299,13 @@ fun AppUsageRow(app: DistractionApp, progress: Float, isTop: Boolean) {
 
         M3Text(
             text = "${app.usageTime}m", 
-            color = if (isTop) Color(0xFFEF4444) else Color.White, 
-            fontSize = 14.sp, 
+            color = if (isTop) Color(0xFFF87171) else Color.White, 
+            fontSize = 15.sp, 
             fontWeight = FontWeight.Bold
         )
     }
 }
+
 
 @Composable
 fun AIInsightCard(recommendation: String) {

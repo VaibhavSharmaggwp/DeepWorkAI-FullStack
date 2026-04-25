@@ -46,6 +46,10 @@ import com.example.deepworkai.viewmodel.SessionViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.math.roundToInt
 
+import com.airbnb.lottie.compose.*
+import es.dmoral.toasty.Toasty
+import android.widget.Toast
+
 @Composable
 fun ActiveSessionScreen(
     onFinish: (com.example.deepworkai.models.EndSessionResponse?) -> Unit,
@@ -53,11 +57,12 @@ fun ActiveSessionScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val focusService = remember { com.example.deepworkai.network.FocusService() }
-    val userId = "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0" // Hardcoded for now based on HomeScreen
+    val userId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
     var sessionId by remember { mutableStateOf<String?>(null) }
     
     var seconds by remember { mutableIntStateOf(0) } // Count up from 0
     val maxSeconds = 1500 // 25 mins
+    val targetDurationMinutes = maxSeconds / 60
     
     var distractions by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -70,6 +75,8 @@ fun ActiveSessionScreen(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    var showEarlyFinishDialog by remember { mutableStateOf(false) }
 
     // API Call to start the session when this screen opens
     LaunchedEffect(Unit) {
@@ -100,7 +107,7 @@ fun ActiveSessionScreen(
                 sessionId?.let { id ->
                     val endTime = System.currentTimeMillis()
                     val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
-                    finalResult = focusService.endSession(id, distractions, apps)
+                    finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
                 }
                 onFinish(finalResult)
             }
@@ -303,14 +310,18 @@ fun ActiveSessionScreen(
                 SlideToFinish(
                     modifier = Modifier.weight(1f),
                     onFinished = {
-                        coroutineScope.launch {
-                            var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
-                            sessionId?.let { id ->
-                                val endTime = System.currentTimeMillis()
-                                val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
-                                finalResult = focusService.endSession(id, distractions, apps)
+                        if (seconds < maxSeconds && seconds > 5) { // Only show if more than 5 seconds but less than goal
+                            showEarlyFinishDialog = true
+                        } else {
+                            coroutineScope.launch {
+                                var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
+                                sessionId?.let { id ->
+                                    val endTime = System.currentTimeMillis()
+                                    val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                                    finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
+                                }
+                                onFinish(finalResult)
                             }
-                            onFinish(finalResult)
                         }
                     }
                 )
@@ -402,7 +413,91 @@ fun ActiveSessionScreen(
                 }
             )
         }
+
+        if (showEarlyFinishDialog) {
+            EarlyFinishDialog(
+                remainingSeconds = maxSeconds - seconds,
+                onDismiss = { showEarlyFinishDialog = false },
+                onConfirm = {
+                    showEarlyFinishDialog = false
+                    coroutineScope.launch {
+                        var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
+                        sessionId?.let { id ->
+                            val endTime = System.currentTimeMillis()
+                            val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                            finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
+                        }
+                        onFinish(finalResult)
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun EarlyFinishDialog(
+    remainingSeconds: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val composition by rememberLottieComposition(LottieCompositionSpec.Url("https://lottie.host/80164c8d-9057-4589-94d3-0599f6671a5c/A8n7U6jC8U.json"))
+    val progress by animateLottieCompositionAsState(composition, iterations = LottieConstants.IterateForever)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF13171D),
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                LottieAnimation(
+                    composition = composition,
+                    progress = { progress },
+                    modifier = Modifier.size(120.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                M3Text("Oops! Staying focused?", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            val minutes = remainingSeconds / 60
+            val secs = remainingSeconds % 60
+            val timeText = if (minutes > 0) "$minutes min $secs sec" else "$secs seconds"
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                M3Text(
+                    text = "You still have $timeText left to complete your deep work target.",
+                    color = Color(0xFF94A3B8),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                M3Text(
+                    text = "Ending now will lower your focus score.",
+                    color = Color(0xFFF87171),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = 0.5f))
+            ) {
+                M3Text("Finish Anyway", color = Color(0xFFF87171))
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue)
+            ) {
+                M3Text("Keep Going", color = Color.White)
+            }
+        },
+        shape = RoundedCornerShape(28.dp)
+    )
 }
 
 @Composable
