@@ -94,6 +94,6 @@ fun SessionHistoryItem(
 @Preview
 @Composable
 fun SessionHistoryItemPreview() {
-    val mock = FocusSession("1", "userId", java.time.OffsetDateTime.now().toString(), null, 87, 2, "Optimal")
+    val mock = FocusSession("1", "userId", java.time.OffsetDateTime.now().toString(), null, 87, 2, 42, "Optimal")
     SessionHistoryItem(session = mock)
 }

@@ -11,7 +11,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import com.example.deepworkai.viewmodel.ProfileViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -35,18 +37,24 @@ import com.example.deepworkai.viewmodel.SessionViewModel
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.example.deepworkai.ui.NotificationSettingsScreen
+import com.example.deepworkai.ui.ProfileScreen
+import com.example.deepworkai.ui.AboutScreen
+import com.example.deepworkai.ui.HelpScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.example.deepworkai.network.NetworkPreferences.init(applicationContext)
+        val profileViewModel: com.example.deepworkai.viewmodel.ProfileViewModel = ProfileViewModel()
         enableEdgeToEdge()
         setContent {
-            DeepWorkAITheme {
+            val isDarkMode = profileViewModel.user.value?.darkMode ?: true
+            DeepWorkAITheme(darkTheme = isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = if (profileViewModel.user.value?.darkMode != false) Color(0xFF0D1117) else Color.White
                 ) {
                     val navController = rememberNavController()
                     val sessionViewModel: SessionViewModel = viewModel()
@@ -125,6 +133,18 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Security.route) {
                             SecurityScreen(navController = navController)
+                        }
+                        composable(Screen.Profile.route) {
+                            ProfileScreen(navController = navController)
+                        }
+                        composable(Screen.Notifications.route) {
+                            NotificationSettingsScreen(navController = navController)
+                        }
+                        composable(Screen.About.route) {
+                            AboutScreen(navController = navController)
+                        }
+                        composable(Screen.Help.route) {
+                            HelpScreen(navController = navController)
                         }
                         composable("session_summary") {
                             SessionSummaryScreen(

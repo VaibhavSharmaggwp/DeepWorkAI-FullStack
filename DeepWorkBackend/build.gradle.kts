@@ -57,6 +57,10 @@ dependencies {
     implementation("io.ktor:ktor-server-auth-jwt-jvm:${ktor_version}")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
 
+    // PDF & CSV Generation
+    implementation("com.github.librepdf:openpdf:1.3.30")
+    implementation("org.apache.commons:commons-csv:1.10.0")
+
     // Testing
     testImplementation("io.ktor:ktor-server-test-host-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")

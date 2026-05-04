@@ -42,4 +42,16 @@ class FocusService {
             null
         }
     }
+
+    suspend fun askAIAssistant(query: String, schedule: String): ChatResponse? {
+        return try {
+            KtorClient.httpClient.post("$BASE_URL/chat") {
+                contentType(ContentType.Application.Json)
+                setBody(ChatRequest(query, schedule))
+            }.body()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

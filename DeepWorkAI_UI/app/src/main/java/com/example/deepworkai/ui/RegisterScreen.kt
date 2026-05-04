@@ -1,16 +1,15 @@
 package com.example.deepworkai.ui
 
+import com.example.deepworkai.R
 import android.annotation.SuppressLint
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.*
 import es.dmoral.toasty.Toasty
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -64,21 +63,14 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             // --- Logo Section ---
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "DeepWork Logo",
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(DeepWorkBlue.copy(alpha = 0.1f))
-                    .border(2.dp, DeepWorkBlue, RoundedCornerShape(24.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Psychology,
-                    contentDescription = "DeepWork Logo",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
-            }
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                contentScale = ContentScale.Fit
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 

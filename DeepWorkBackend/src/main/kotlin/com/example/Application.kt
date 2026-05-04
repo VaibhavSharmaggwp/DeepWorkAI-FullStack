@@ -9,10 +9,13 @@ import com.example.routes.allRoutes
 import com.example.routes.sessionHistoryRoutes
 import com.example.security.GoogleAuthService
 import com.example.security.JwtService
+import io.ktor.server.http.content.*
+import com.example.plugins.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
 import io.ktor.server.routing.*
+import java.io.File
 
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
@@ -52,4 +55,20 @@ fun Application.module() {
     // 4. Pass the jwtService into your routing
     // This solves the "No value passed for parameter" error
     configureRouting(userRepository, jwtService, googleAuthService)
+    
+    // Register new routes
+    configureProfileRoutes()
+    configureExportRoutes(jwtService)
+
+    // Serve static files from the uploads directory
+    routing {
+        static("/uploads") {
+            staticRootFolder = File(".")
+            files("uploads")
+        }
+    }
+
+    // Start Background Services
+    val notificationService = com.example.service.NotificationService(this)
+    notificationService.start()
 }

@@ -25,8 +25,8 @@ object DatabaseFactory{
             val database = Database.connect(jdbcUrl, driverClassName, user, password)
 
             transaction(database){
-                SchemaUtils.create(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable)
-                println("DatabaseFactory: Tables 'users', 'focus_sessions', 'daily_analytics', 'session_history', 'distraction_logs' verified/created")
+                SchemaUtils.createMissingTablesAndColumns(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable)
+                println("DatabaseFactory: Schema verified (tables and columns created/updated)")
             }
             println("DatabaseFactory: Connection successful")
         } catch (e: Exception) {
@@ -44,17 +44,22 @@ object DatabaseFactory{
         val sessionId = UUID.randomUUID()
         val startTime = LocalDateTime.now()
 
+        val currentCount = FocusSessionsTable.select { FocusSessionsTable.userId eq userId }.count().toInt()
+        val nextSessionNumber = currentCount + 1
+
         val result = FocusSessionsTable.insert {
             it[id] = sessionId
             it[FocusSessionsTable.userId] = userId
             it[FocusSessionsTable.startTime] = startTime
+            it[FocusSessionsTable.sessionNumber] = nextSessionNumber
         }
 
         if (result.insertedCount > 0) {
             FocusSession(
                 id = sessionId.toString(),
                 userId = userId.toString(),
-                startTime = startTime.toString()
+                startTime = startTime.toString(),
+                sessionNumber = nextSessionNumber
             )
         } else null
     }
@@ -97,7 +102,8 @@ object DatabaseFactory{
                     startTime = startTime.toString(),
                     endTime = endTime.toString(),
                     focusScore = calculatedScore,
-                    distractions = distractions
+                    distractions = distractions,
+                    sessionNumber = existingSession[FocusSessionsTable.sessionNumber]
                 )
             } else null
         } else null
@@ -116,6 +122,26 @@ object DatabaseFactory{
                     endTime = it[FocusSessionsTable.endTime]?.toString(),
                     focusScore = it[FocusSessionsTable.focusScore],
                     distractions = it[FocusSessionsTable.distractions],
+                    sessionNumber = it[FocusSessionsTable.sessionNumber],
+                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low"
+                )
+            }
+    }
+
+    suspend fun getWeeklySessions(userId: UUID): List<FocusSession> = dbQuery {
+        val lastWeek = LocalDateTime.now().minusDays(7)
+        FocusSessionsTable
+            .select { (FocusSessionsTable.userId eq userId) and (FocusSessionsTable.startTime greaterEq lastWeek) }
+            .orderBy(FocusSessionsTable.startTime, SortOrder.DESC)
+            .map {
+                FocusSession(
+                    id = it[FocusSessionsTable.id].toString(),
+                    userId = it[FocusSessionsTable.userId].toString(),
+                    startTime = it[FocusSessionsTable.startTime].toString(),
+                    endTime = it[FocusSessionsTable.endTime]?.toString(),
+                    focusScore = it[FocusSessionsTable.focusScore],
+                    distractions = it[FocusSessionsTable.distractions],
+                    sessionNumber = it[FocusSessionsTable.sessionNumber],
                     cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low"
                 )
             }

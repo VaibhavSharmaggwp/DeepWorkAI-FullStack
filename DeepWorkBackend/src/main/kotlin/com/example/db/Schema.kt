@@ -25,6 +25,7 @@ object FocusSessionsTable : Table("focus_sessions") {
     val focusScore = integer("focus_score").default(0)
     val durationMinutes = integer("duration_minutes").default(0)
     val distractions = integer("distractions").default(0)
+    val sessionNumber = integer("session_number").default(1)
     val burnoutRisk = varchar("burnout_risk", 50).nullable()
     val cognitiveLoad = varchar("cognitive_load", 50).nullable()
 

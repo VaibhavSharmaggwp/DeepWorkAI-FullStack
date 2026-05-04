@@ -15,15 +15,9 @@ object NetworkPreferences {
     }
 
     var backendUrl: String
-        get() = if (::prefs.isInitialized) {
-            prefs.getString(KEY_BACKEND_URL, BuildConfig.BACKEND_URL) ?: BuildConfig.BACKEND_URL
-        } else {
-            BuildConfig.BACKEND_URL
-        }
+        get() = BuildConfig.BACKEND_URL
         set(value) {
-            if (::prefs.isInitialized) {
-                prefs.edit().putString(KEY_BACKEND_URL, value).apply()
-            }
+            // No-op, always use BuildConfig
         }
 
     var userId: String?
@@ -33,4 +27,8 @@ object NetworkPreferences {
     var userName: String?
         get() = prefs.getString("user_name", null)
         set(value) = prefs.edit().putString("user_name", value).apply()
+
+    var authToken: String?
+        get() = prefs.getString("auth_token", null)
+        set(value) = prefs.edit().putString("auth_token", value).apply()
 }

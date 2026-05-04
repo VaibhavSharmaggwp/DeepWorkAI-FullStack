@@ -19,7 +19,14 @@ data class RegisterRequest(
 data class User(
     val id: String,
     val email: String,
-    val fullName: String
+    val fullName: String,
+    val imageUrl: String? = null,
+    val focusScore: Int = 0,
+    val darkMode: Boolean = true,
+    val behavioralTracking: Boolean = false,
+    val notificationsEnabled: Boolean = true,
+    val notificationType: String = "notification",
+    val notificationTime: String = "09:00"
 )
 
 @Serializable

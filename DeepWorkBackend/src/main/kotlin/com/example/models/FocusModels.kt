@@ -10,6 +10,7 @@ data class FocusSession(
     val endTime:String?= null,
     val focusScore:Int = 0,
     val distractions:Int = 0,
+    val sessionNumber: Int = 1,
     val cognitiveLoad: String = "Low"
 )
 
@@ -50,4 +51,15 @@ data class SessionDistractions(
 data class DistractionInsightsResponse(
     val sessions: List<SessionDistractions>,
     val recommendation: String
+)
+
+@Serializable
+data class ChatRequest(
+    val query: String,
+    val schedule: String
+)
+
+@Serializable
+data class ChatResponse(
+    val reply: String
 )

@@ -13,6 +13,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.*
+import com.example.models.ChatRequest
+import com.example.models.ChatResponse
 
 // Pass the repository as a parameter so both route sets can use it
 fun Route.allRoutes(repository: FocusRepository) {
@@ -101,6 +103,21 @@ fun Route.allRoutes(repository: FocusRepository) {
                 call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
             }
         }
+
+        post("/chat") {
+            try {
+                val request = call.receive<ChatRequest>()
+                
+                // We'll mock context since we don't know the userId here without auth, 
+                // but for now we pass a generic context string or what's needed.
+                val userContext = "User has an average focus score of 80%." 
+                
+                val reply = getAIAssistantResponse(request.query, userContext, request.schedule)
+                call.respond(HttpStatusCode.OK, ChatResponse(reply))
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
+            }
+        }
     }
 
     // --- ANALYTICS ROUTES (Moved outside /sessions) ---
@@ -177,6 +194,24 @@ fun getMLDistractionRecommendation(appsDataJson: String): String {
         }
     } catch (e: Exception) {
         "Reduce your time on distracting apps to stay more focused."
+    }
+}
+
+fun getAIAssistantResponse(query: String, context: String, schedule: String): String {
+    return try {
+        val pythonPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\venv\\Scripts\\python.exe"
+        val scriptPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\ai_chatbot.py"
+
+        val process = ProcessBuilder(
+            pythonPath, scriptPath, query, context, schedule
+        ).start()
+
+        val result = process.inputStream.bufferedReader().readText().trim()
+        result.ifBlank {
+            "I'm sorry, I couldn't process your request."
+        }
+    } catch (e: Exception) {
+        "Failed to reach AI service."
     }
 }
 

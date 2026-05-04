@@ -7,14 +7,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import es.dmoral.toasty.Toasty
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -83,6 +79,7 @@ fun LoginScreen(
                                 // 🚀 SAVE USER DATA
                                 com.example.deepworkai.network.NetworkPreferences.userId = authResponse.user.id
                                 com.example.deepworkai.network.NetworkPreferences.userName = authResponse.user.fullName
+                                com.example.deepworkai.network.NetworkPreferences.authToken = authResponse.token
                                 
                                 Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
                                 onNavigateToHome()
@@ -124,8 +121,6 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var showIpDialog by remember { mutableStateOf(false) }
-    var ipDialogText by remember { mutableStateOf(com.example.deepworkai.network.NetworkPreferences.backendUrl) }
 
     Scaffold(
         containerColor = DeepWorkBackground
@@ -140,30 +135,16 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Top
         ) {
             Spacer(modifier = Modifier.height(30.dp))
-            
-            // Settings Icon for IP
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                IconButton(onClick = { showIpDialog = true }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = DeepWorkTextSecondary)
-                }
-            }
 
             // --- Logo Section ---
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "DeepWork Logo",
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(DeepWorkBlue.copy(alpha = 0.1f))
-                    .border(2.dp, DeepWorkBlue, RoundedCornerShape(24.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Psychology,
-                    contentDescription = "DeepWork Logo",
-                    tint = Color.White,
-                    modifier = Modifier.size(60.dp)
-                )
-            }
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                contentScale = ContentScale.Fit
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -231,6 +212,7 @@ fun LoginScreen(
                             // 🚀 SAVE USER DATA
                             com.example.deepworkai.network.NetworkPreferences.userId = authResponse.user.id
                             com.example.deepworkai.network.NetworkPreferences.userName = authResponse.user.fullName
+                            com.example.deepworkai.network.NetworkPreferences.authToken = authResponse.token
                             
                             Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
                             onNavigateToHome()
@@ -269,39 +251,6 @@ fun LoginScreen(
                 )
             }
         }
-    }
-
-    if (showIpDialog) {
-        AlertDialog(
-            onDismissRequest = { showIpDialog = false },
-            containerColor = DeepWorkSurface,
-            title = { Text("Configure Backend IP", color = Color.White) },
-            text = {
-                OutlinedTextField(
-                    value = ipDialogText,
-                    onValueChange = { ipDialogText = it },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    com.example.deepworkai.network.NetworkPreferences.backendUrl = ipDialogText
-                    showIpDialog = false
-                    Toasty.success(context, "IP Updated", Toast.LENGTH_SHORT).show()
-                }) {
-                    Text("Save", color = DeepWorkBlue)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showIpDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
-                }
-            }
-        )
     }
 }
 

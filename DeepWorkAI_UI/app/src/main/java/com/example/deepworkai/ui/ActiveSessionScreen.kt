@@ -59,6 +59,7 @@ fun ActiveSessionScreen(
     val focusService = remember { com.example.deepworkai.network.FocusService() }
     val userId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
     var sessionId by remember { mutableStateOf<String?>(null) }
+    var sessionNumber by remember { mutableIntStateOf(1) }
     
     var seconds by remember { mutableIntStateOf(0) } // Count up from 0
     val maxSeconds = 1500 // 25 mins
@@ -87,6 +88,13 @@ fun ActiveSessionScreen(
         val session = focusService.startSession(userId)
         if (session != null) {
             sessionId = session.id
+            sessionNumber = session.sessionNumber
+        }
+        
+        // Late-Night Toast Warning
+        val currentHour = java.time.LocalTime.now().hour
+        if (currentHour in 2..4) {
+            Toasty.error(context, "It's late, you should take a sleep.", Toast.LENGTH_LONG, true).show()
         }
     }
 
@@ -152,7 +160,7 @@ fun ActiveSessionScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             // 2. Subtitle
-            M3Text("Session #42 • Coding", color = Color(0xFF64748B), fontSize = 14.sp)
+            M3Text("Session #$sessionNumber • Coding", color = Color(0xFF64748B), fontSize = 14.sp)
 
             Spacer(modifier = Modifier.height(16.dp))
 

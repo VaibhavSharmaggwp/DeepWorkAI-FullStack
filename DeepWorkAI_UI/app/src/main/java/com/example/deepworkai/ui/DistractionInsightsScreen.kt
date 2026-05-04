@@ -227,81 +227,139 @@ fun SessionGroupCard(session: SessionDistractions, index: Int) {
 
 @Composable
 fun AppUsageRow(app: DistractionApp, progress: Float, isTop: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    var expanded by remember { mutableStateOf(false) }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .background(if (expanded) Color.White.copy(alpha=0.03f) else Color.Transparent, RoundedCornerShape(12.dp))
+            .padding(8.dp)
     ) {
-        // Determine domain for Clearbit Logo API
-        val domain = remember(app.appName) {
-            val name = app.appName.lowercase().replace(" ", "")
-            when {
-                name.contains("instagram") -> "instagram.com"
-                name.contains("youtube") -> "youtube.com"
-                name.contains("facebook") -> "facebook.com"
-                name.contains("tiktok") -> "tiktok.com"
-                name.contains("twitter") -> "twitter.com"
-                name.contains("x") && name.length <= 2 -> "twitter.com"
-                name.contains("whatsapp") -> "whatsapp.com"
-                name.contains("chrome") -> "google.com"
-                name.contains("gmail") -> "gmail.com"
-                name.contains("netflix") -> "netflix.com"
-                name.contains("spotify") -> "spotify.com"
-                name.contains("linkedin") -> "linkedin.com"
-                name.contains("reddit") -> "reddit.com"
-                name.contains("snapchat") -> "snapchat.com"
-                name.contains(".") -> name // Likely already a package name or domain
-                else -> "$name.com"
-            }
-        }
-
-        // Logo
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.05f)),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("https://logo.clearbit.com/$domain")
-                    .crossfade(true)
-                    .error(com.example.deepworkai.R.drawable.ic_launcher_foreground) // Fallback icon
-                    .build(),
-                contentDescription = "${app.appName} logo",
-                contentScale = ContentScale.Fit,
+            // Placeholder Icon
+            Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.05f)),
+                contentAlignment = Alignment.Center
+            ) {
+                M3Text(
+                    text = app.appName.take(1).uppercase(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                M3Text(
+                    text = app.appName, 
+                    color = Color.White, 
+                    fontSize = 15.sp, 
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                // Progress bar representing % of total distraction
+                Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(Color.White.copy(alpha=0.05f))) {
+                    Box(modifier = Modifier.fillMaxWidth(progress).height(6.dp).background(
+                        if (isTop) Color(0xFFF87171) else DeepWorkBlue
+                    ))
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            M3Text(
+                text = "${app.usageTime}m", 
+                color = if (isTop) Color(0xFFF87171) else Color.White, 
+                fontSize = 15.sp, 
+                fontWeight = FontWeight.Bold
             )
         }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            M3Text(
-                text = app.appName, 
-                color = Color.White, 
-                fontSize = 15.sp, 
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            
-            // Progress bar representing % of total distraction
-            Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(Color.White.copy(alpha=0.05f))) {
-                Box(modifier = Modifier.fillMaxWidth(progress).height(6.dp).background(
-                    if (isTop) Color(0xFFF87171) else DeepWorkBlue
-                ))
+        
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Crazy Animation
+                PulsingRadarAnimation(isTop = isTop)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                M3Text(
+                    text = "You used ${app.appName} for ${app.usageTime} minutes during your focus session. Try reducing it.",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 14.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.width(16.dp))
+@Composable
+fun PulsingRadarAnimation(isTop: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 2.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    )
 
-        M3Text(
-            text = "${app.usageTime}m", 
-            color = if (isTop) Color(0xFFF87171) else Color.White, 
-            fontSize = 15.sp, 
-            fontWeight = FontWeight.Bold
+    val coreColor = if (isTop) Color(0xFFEF4444) else DeepWorkBlue
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(120.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.size(80.dp)) {
+            drawCircle(
+                color = coreColor.copy(alpha = alpha * 0.5f),
+                radius = size.width / 2 * scale
+            )
+            drawCircle(
+                color = coreColor.copy(alpha = alpha),
+                radius = size.width / 2 * (scale * 0.6f)
+            )
+            drawCircle(
+                color = coreColor,
+                radius = size.width / 2 * 0.3f
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
         )
     }
 }

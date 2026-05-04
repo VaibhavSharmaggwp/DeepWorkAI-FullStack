@@ -1,5 +1,6 @@
 package com.example.deepworkai.ui
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,8 +42,8 @@ import com.example.deepworkai.R
 import com.example.deepworkai.network.FocusService
 import com.example.deepworkai.ui.theme.*
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.text.SimpleDateFormat
 import java.util.Locale
 import com.example.deepworkai.viewmodel.SessionViewModel
 import com.example.deepworkai.viewmodel.AnalyticsViewModel
@@ -50,16 +51,30 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.mutableFloatStateOf
-
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Send
 import androidx.navigation.NavController
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import kotlinx.coroutines.Dispatchers
 
 @Composable
 fun HomeScreen(
     navController: NavController? = null,
     onNavigateToActiveSession: () -> Unit = {},
     viewModel: SessionViewModel = viewModel(),
-    analyticsViewModel: AnalyticsViewModel = viewModel()
+    analyticsViewModel: AnalyticsViewModel = viewModel(),
+    profileViewModel: com.example.deepworkai.viewmodel.ProfileViewModel = viewModel()
 ) {
+    val user by profileViewModel.user
+    
+    LaunchedEffect(Unit) {
+        profileViewModel.fetchProfile()
+    }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val focusService = remember{ FocusService() }
@@ -76,18 +91,24 @@ fun HomeScreen(
 
     var burnoutRisk by remember { mutableStateOf("Low") }
     var showWellDoneDialog by remember { mutableStateOf(false) }
+    
+    var showChatbot by remember { mutableStateOf(false) }
 
     // Real-time Date & Time State
-    var currentDateTime by remember { mutableStateOf(LocalDateTime.now()) }
+    var currentDateTime by remember { mutableStateOf(Calendar.getInstance()) }
     
     // Cognitive Load from ViewModel
     val cognitiveLoad by viewModel.cognitiveLoad.collectAsState()
+
+    LaunchedEffect(Unit) {
+        profileViewModel.fetchProfile()
+    }
 
     // Update Date & Time every second
     LaunchedEffect(Unit) {
         viewModel.updateCognitiveLoad() // Refresh on entry
         while (true) {
-            currentDateTime = LocalDateTime.now()
+            currentDateTime = Calendar.getInstance()
             kotlinx.coroutines.delay(1000)
         }
     }
@@ -127,7 +148,7 @@ fun HomeScreen(
     val userId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
     val userName = com.example.deepworkai.network.NetworkPreferences.userName ?: "User"
 
-    val greeting = when (currentDateTime.hour) {
+    val greeting = when (currentDateTime.get(Calendar.HOUR_OF_DAY)) {
         in 5..11 -> "Good Morning"
         in 12..16 -> "Good Afternoon"
         in 17..21 -> "Good Evening"
@@ -162,7 +183,14 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            HomeHeader(userName = userName, greeting = greeting, currentDateTime = currentDateTime)
+            val profileImageUrl = com.example.deepworkai.BuildConfig.BACKEND_URL + (user?.imageUrl ?: "")
+            HomeHeader(
+                userName = userName, 
+                greeting = greeting, 
+                currentDateTime = currentDateTime,
+                imageUrl = if (user?.imageUrl != null) profileImageUrl else null,
+                onProfileClick = { navController?.navigate(Screen.Profile.route) }
+            )
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -170,10 +198,11 @@ fun HomeScreen(
             MainFocusCard(
                 focusTime = if (isSessionActive) formattedTime else "0h 00m",
                 progress = 12,
-                score = todayScore,
+                score = if (todayScore > 0) todayScore else (user?.focusScore ?: 0),
                 cognitiveLoad = cognitiveLoad,
                 dailyGoal = dailyGoalDisplay,
-                onDailyGoalClick = { showDailyGoalDialog = true }
+                onDailyGoalClick = { showDailyGoalDialog = true },
+                onScoreClick = { navController?.navigate(Screen.Analytics.route) }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -203,6 +232,7 @@ fun HomeScreen(
             val contextSwitches = analyticsViewModel.uiState.value?.contextSwitches ?: 0
             GridMetrics(
                 distractionsCount = contextSwitches.toString(),
+                focusStability = todayScore,
                 onMetricsClick = {
                     navController?.navigate(Screen.DistractionInsights.route)
                 }
@@ -219,6 +249,11 @@ fun HomeScreen(
                     else -> Color(0xFF4ADE80)     // Green
                 }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Beautiful Animated Chat Banner
+            AIChatBanner(onClick = { showChatbot = true })
 
             // Extra spacer so the FAB doesn't hide the last card
             Spacer(modifier = Modifier.height(100.dp))
@@ -260,6 +295,13 @@ fun HomeScreen(
                 confirmButton = {
                     AwesomeButton(onClick = { showWellDoneDialog = false })
                 }
+            )
+        }
+
+        if (showChatbot) {
+            AIChatbotBottomSheet(
+                onDismiss = { showChatbot = false },
+                focusService = focusService
             )
         }
     }
@@ -344,24 +386,34 @@ fun AwesomeButton(onClick: () -> Unit) {
     }
 }
 
+
 @Composable
-fun HomeHeader(userName: String, greeting: String, currentDateTime: LocalDateTime) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE, MMM dd", Locale.getDefault()) }
-    val timeFormatter = remember { DateTimeFormatter.ofPattern("hh:mm:ss a", Locale.getDefault()) }
+fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, imageUrl: String? = null, onProfileClick: () -> Unit = {}) {
+    val dateFormatter = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
+    val timeFormatter = remember { SimpleDateFormat("hh:mm:ss a", Locale.getDefault()) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.app_logo),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
             M3Text(
-                text = currentDateTime.format(dateFormatter),
+                text = dateFormatter.format(currentDateTime.time),
                 color = DeepWorkTextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
             M3Text(
-                text = currentDateTime.format(timeFormatter),
+                text = timeFormatter.format(currentDateTime.time),
                 color = DeepWorkBlue,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
@@ -373,13 +425,32 @@ fun HomeHeader(userName: String, greeting: String, currentDateTime: LocalDateTim
                 fontWeight = FontWeight.Bold
             )
         }
-        // Profile Image Placeholder
+        }
+        
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFCC80)) // Matches your orange profile icon
-        )
+                .background(Color(0xFF161B22))
+                .border(1.dp, DeepWorkBlue.copy(alpha = 0.5f), CircleShape)
+                .clickable { onProfileClick() }
+        ) {
+            if (imageUrl != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(imageUrl),
+                    contentDescription = "Profile",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.Person, 
+                    contentDescription = null, 
+                    tint = Color.Gray, 
+                    modifier = Modifier.fillMaxSize().padding(10.dp)
+                )
+            }
+        }
     }
 }
 
@@ -390,7 +461,8 @@ fun MainFocusCard(
     score: Int,
     cognitiveLoad: String,
     dailyGoal: String,
-    onDailyGoalClick: () -> Unit = {}
+    onDailyGoalClick: () -> Unit = {},
+    onScoreClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -438,7 +510,8 @@ fun MainFocusCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .size(60.dp)
-                    .border(2.dp, DeepWorkBlue.copy(alpha = 0.3f), CircleShape),
+                    .border(2.dp, DeepWorkBlue.copy(alpha = 0.3f), CircleShape)
+                    .clickable { onScoreClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -577,7 +650,10 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 
                 val maxMinutes = paddedData.maxOrNull()?.coerceAtLeast(1) ?: 1
                 
-                val labels = listOf("M", "T", "W", "T", "F", "S", "S")
+                val today = java.time.LocalDate.now()
+                val labels = (0..6).map { i ->
+                    today.minusDays((6 - i).toLong()).dayOfWeek.name.take(1)
+                }
 
                 Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
                     Canvas(modifier = Modifier.fillMaxSize().padding(bottom = 24.dp)) {
@@ -632,8 +708,8 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 
                         // Draw dots on the points
                         points.forEachIndexed { index, offset ->
-                            val color = if (paddedData[index] == maxMinutes) Color(0xFF4ADE80) else DeepWorkBlue
-                            val radius = if (paddedData[index] == maxMinutes) 6.dp.toPx() else 4.dp.toPx()
+                            val color = if (index == 6) Color(0xFFEAB308) else DeepWorkBlue
+                            val radius = if (index == 6) 6.dp.toPx() else 4.dp.toPx()
                             
                             drawCircle(
                                 color = Color.White,
@@ -656,9 +732,9 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
                         labels.forEachIndexed { index, label ->
                             M3Text(
                                 text = label, 
-                                color = if (paddedData[index] == maxMinutes) Color(0xFF4ADE80) else DeepWorkTextSecondary, 
+                                color = if (index == 6) Color(0xFFEAB308) else DeepWorkTextSecondary, 
                                 fontSize = 12.sp,
-                                fontWeight = if (paddedData[index] == maxMinutes) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (index == 6) FontWeight.Bold else FontWeight.Normal
                             )
                         }
                     }
@@ -669,17 +745,19 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 }
 
 @Composable
-fun GridMetrics(distractionsCount: String = "0", onMetricsClick: () -> Unit = {}) {
+fun GridMetrics(distractionsCount: String = "0", focusStability: Int = 85, onMetricsClick: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         // Focus Stability Card
+        val stabilityColor = if (focusStability >= 80) Color(0xFF4ADE80) else Color(0xFFEF4444)
         MetricCard(
             modifier = Modifier.weight(1f),
             title = "Focus Stability",
-            value = "85%",
+            value = "$focusStability%",
             trend = "+4%",
             icon = Icons.Default.Lightbulb,
-            iconColor = DeepWorkBlue
+            iconColor = stabilityColor,
+            valueColor = stabilityColor
         )
         // Distractions Card
         MetricCard(
@@ -704,6 +782,7 @@ fun MetricCard(
     subValue: String = "",
     icon: ImageVector? = null,
     iconColor: Color = Color.White,
+    valueColor: Color = Color.White,
     isWarning: Boolean = false
 ) {
     Card(
@@ -728,7 +807,7 @@ fun MetricCard(
             Spacer(modifier = Modifier.height(16.dp))
             M3Text(title, color = DeepWorkTextSecondary, style = MaterialTheme.typography.labelSmall)
             Row(verticalAlignment = Alignment.Bottom) {
-                M3Text(value, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                M3Text(value, color = valueColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 if (subValue.isNotEmpty()) {
                     M3Text(" $subValue", color = DeepWorkTextSecondary, fontSize = 12.sp)
                 }
@@ -780,6 +859,204 @@ fun HomeScreenPreview() {
             color = DeepWorkBackground
         ) {
             HomeScreen()
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AIChatbotBottomSheet(
+    onDismiss: () -> Unit,
+    focusService: com.example.deepworkai.network.FocusService
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    var inputQuery by remember { mutableStateOf("") }
+    var inputSchedule by remember { mutableStateOf("9 AM - 5 PM Work") }
+    
+    val messages = remember { androidx.compose.runtime.mutableStateListOf<Pair<Boolean, String>>(
+        Pair(false, "Hi! I am your AI Productivity Assistant. How can I help you today?")
+    ) }
+    
+    var isLoading by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(
+        onDismissRequest = { onDismiss() },
+        sheetState = sheetState,
+        containerColor = DeepWorkSurface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .heightIn(min = 400.dp, max = 600.dp)
+        ) {
+            M3Text("DeepWork AI Assistant", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                reverseLayout = false
+            ) {
+                items(messages) { message ->
+                    val isUser = message.first
+                    val text = message.second
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isUser) DeepWorkBlue else Color(0xFF2A2A2A),
+                            modifier = Modifier.widthIn(max = 280.dp)
+                        ) {
+                            M3Text(
+                                text = text,
+                                color = Color.White,
+                                modifier = Modifier.padding(12.dp),
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+                if (isLoading) {
+                    item {
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.Start) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = DeepWorkBlue, strokeWidth = 2.dp)
+                        }
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = inputSchedule,
+                onValueChange = { inputSchedule = it },
+                label = { M3Text("Your Daily Schedule context", color = Color.Gray) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = DeepWorkBlue,
+                    unfocusedBorderColor = Color.Gray,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = inputQuery,
+                    onValueChange = { inputQuery = it },
+                    placeholder = { M3Text("Ask me something...", color = Color.Gray) },
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = DeepWorkBlue,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (inputQuery.isNotBlank()) {
+                            val userQuery = inputQuery
+                            val userSchedule = inputSchedule
+                            messages.add(Pair(true, userQuery))
+                            inputQuery = ""
+                            isLoading = true
+                            
+                            scope.launch(Dispatchers.IO) {
+                                val response = focusService.askAIAssistant(userQuery, userSchedule)
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    isLoading = false
+                                    if (response != null) {
+                                        messages.add(Pair(false, response.reply))
+                                    } else {
+                                        messages.add(Pair(false, "Sorry, I couldn't reach the server."))
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.background(DeepWorkBlue, CircleShape)
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.White)
+                }
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun AIChatBanner(onClick: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition()
+    
+    // Pulsating animation scale
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    // Glowing border alpha
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22)),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DeepWorkBlue.copy(alpha = alpha))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(DeepWorkBlue.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.SmartToy, contentDescription = "AI", tint = DeepWorkBlue)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                M3Text(
+                    text = "Ask AI Assistant",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                M3Text(
+                    text = "Analyze my focus score & schedule",
+                    color = DeepWorkTextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(Icons.Default.PlayArrow, contentDescription = "Go", tint = DeepWorkBlue)
         }
     }
 }
