@@ -16,4 +16,5 @@ sealed class Screen(val route: String) {
     object Notifications : Screen("notifications")
     object Help : Screen("help")
     object About : Screen("about")
+    object TaskPlanner : Screen("task_planner")
 }

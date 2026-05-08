@@ -9,11 +9,11 @@ import com.example.deepworkai.BuildConfig
 class FocusService {
     private val BASE_URL get() = "${NetworkPreferences.backendUrl}/sessions"
 
-    suspend fun startSession(userId: String): FocusSession? {
+    suspend fun startSession(userId: String, taskId: String? = null): FocusSession? {
         return try {
             KtorClient.httpClient.post("$BASE_URL/start") {
                 contentType(ContentType.Application.Json)
-                setBody(StartSessionRequest(userId))
+                setBody(StartSessionRequest(userId, taskId))
             }.body()
         } catch (e: Exception) {
             e.printStackTrace()

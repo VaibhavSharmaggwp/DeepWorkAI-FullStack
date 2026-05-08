@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.example.deepworkai.models.SessionSummaryResponse
 import com.example.deepworkai.viewmodel.SessionViewModel
 
-@RequiresApi(Build.VERSION_CODES.O)
+
 @Composable
 fun SessionSummaryScreen(
     navController: NavController,
@@ -42,10 +42,17 @@ fun SessionSummaryScreen(
     val currentSession = viewModel.currentSession.collectAsState().value
     val stability = currentSession?.session?.focusScore ?: 0
     val duration = (currentSession?.session as? com.example.deepworkai.models.FocusSession)?.let { 
-        val start = java.time.LocalDateTime.parse(it.startTime)
-        val end = it.endTime?.let { e -> java.time.LocalDateTime.parse(e) } ?: start
-        java.time.Duration.between(start, end).toMinutes()
-    } ?: 0
+        try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            val start = sdf.parse(it.startTime)
+            val end = it.endTime?.let { e -> sdf.parse(e) } ?: start
+            if (start != null && end != null) {
+                (end.time - start.time) / (1000 * 60)
+            } else 0L
+        } catch (e: Exception) {
+            0L
+        }
+    } ?: 0L
     val distractionsCount = currentSession?.session?.distractions ?: 0
     val distractionLevel = if (distractionsCount > 5) "High" else if (distractionsCount > 2) "Medium" else "Low"
     val avgBlock = if (distractionsCount == 0 && duration > 0) duration else if (duration > 0) duration / (distractionsCount + 1) else 0
@@ -220,13 +227,19 @@ fun FocusStabilityCard(stability: Int) {
             modifier = Modifier.padding(vertical = 40.dp, horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("FOCUS STABILITY", color = Color(0xFF3B82F6), fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+            val feedbackColor = when {
+                stability < 40 -> Color(0xFFF87171) // Red
+                stability < 70 -> Color(0xFFFBBF24) // Yellow
+                else -> Color(0xFF4ADE80) // Green
+            }
+
+            Text("FOCUS STABILITY", color = feedbackColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
             Spacer(modifier = Modifier.height(32.dp))
             Box(contentAlignment = Alignment.Center) {
-                Box(modifier = Modifier.size(140.dp).blur(30.dp).background(Color(0xFF2563EB).copy(0.1f), CircleShape))
+                Box(modifier = Modifier.size(140.dp).blur(30.dp).background(feedbackColor.copy(0.1f), CircleShape))
                 Canvas(modifier = Modifier.size(160.dp)) {
                     drawArc(color = Color(0xFF1E293B), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round))
-                    drawArc(color = Color(0xFF2563EB), startAngle = -90f, sweepAngle = (stability / 100f) * 360f, useCenter = false, style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round))
+                    drawArc(color = feedbackColor, startAngle = -90f, sweepAngle = (stability / 100f) * 360f, useCenter = false, style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round))
                 }
                 Row(verticalAlignment = Alignment.Top) {
                     Text("$stability", color = Color.White, fontSize = 64.sp, fontWeight = FontWeight.Bold)
@@ -235,21 +248,14 @@ fun FocusStabilityCard(stability: Int) {
             }
             Spacer(modifier = Modifier.height(32.dp))
             val feedbackMessage = when {
-                stability < 25 -> "Don't give up! Every small step builds your focus muscle. Try a shorter target next time."
-                stability < 50 -> "Good start, but you can do better. Try to minimize distractions in your next session."
-                stability < 75 -> "Good work! You're finding your rhythm. Keep pushing for that deep flow state."
+                stability < 40 -> "Don't give up! Every small step builds your focus muscle. Try a shorter target next time."
+                stability < 70 -> "Good work! You're finding your rhythm. Keep pushing for that deep flow state."
                 else -> "Excellent work! You maintained high focus depth and reached your target."
-            }
-            val feedbackColor = when {
-                stability < 25 -> Color(0xFFF87171) // Reddish
-                stability < 50 -> Color(0xFFFBBF24) // Yellowish
-                stability < 75 -> Color(0xFF34D399) // Greenish
-                else -> Color(0xFF3B82F6) // Blue
             }
 
             Text(
                 text = feedbackMessage,
-                color = Color(0xFF94A3B8),
+                color = feedbackColor.copy(alpha = 0.8f),
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 24.sp
@@ -258,7 +264,7 @@ fun FocusStabilityCard(stability: Int) {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+
 @Preview(showBackground = true, backgroundColor = 0xFF0D1117)
 @Composable
 fun SessionSummaryPreview() {

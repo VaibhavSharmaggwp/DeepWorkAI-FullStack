@@ -53,9 +53,14 @@ import android.widget.Toast
 @Composable
 fun ActiveSessionScreen(
     onFinish: (com.example.deepworkai.models.EndSessionResponse?) -> Unit,
-    viewModel: SessionViewModel = viewModel()
+    viewModel: SessionViewModel = viewModel(),
+    taskViewModel: com.example.deepworkai.viewmodel.TaskViewModel = viewModel()
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val tasks by taskViewModel.tasks
+    var selectedTaskId by remember { mutableStateOf<String?>(null) }
+    var selectedTaskTitle by remember { mutableStateOf("General Focus") }
+    var showTaskSelector by remember { mutableStateOf(true) }
     val focusService = remember { com.example.deepworkai.network.FocusService() }
     val userId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
     var sessionId by remember { mutableStateOf<String?>(null) }
@@ -79,23 +84,70 @@ fun ActiveSessionScreen(
 
     var showEarlyFinishDialog by remember { mutableStateOf(false) }
 
-    // API Call to start the session when this screen opens
-    LaunchedEffect(Unit) {
-        sessionStartTime = System.currentTimeMillis()
-        if (!com.example.deepworkai.utils.AppUsageTracker.hasUsageStatsPermission(context)) {
-            com.example.deepworkai.utils.AppUsageTracker.requestUsageStatsPermission(context)
+        // We'll start the session AFTER task selection or if they skip
+
+    fun startFocusSessionInternal() {
+        coroutineScope.launch {
+            sessionStartTime = System.currentTimeMillis()
+            if (!com.example.deepworkai.utils.AppUsageTracker.hasUsageStatsPermission(context)) {
+                com.example.deepworkai.utils.AppUsageTracker.requestUsageStatsPermission(context)
+            }
+            val session = focusService.startSession(userId, selectedTaskId)
+            if (session != null) {
+                sessionId = session.id
+                sessionNumber = session.sessionNumber
+            }
+            
+            // Late-Night Toast Warning
+            val currentHour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            if (currentHour in 2..4) {
+                Toasty.error(context, "It's late, you should take a sleep.", Toast.LENGTH_LONG, true).show()
+            }
         }
-        val session = focusService.startSession(userId)
-        if (session != null) {
-            sessionId = session.id
-            sessionNumber = session.sessionNumber
-        }
-        
-        // Late-Night Toast Warning
-        val currentHour = java.time.LocalTime.now().hour
-        if (currentHour in 2..4) {
-            Toasty.error(context, "It's late, you should take a sleep.", Toast.LENGTH_LONG, true).show()
-        }
+    }
+
+    if (showTaskSelector) {
+        AlertDialog(
+            onDismissRequest = { 
+                showTaskSelector = false
+                startFocusSessionInternal()
+            },
+            containerColor = Color(0xFF13171D),
+            title = { M3Text("What are you focusing on?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().clickable { 
+                            selectedTaskId = null
+                            selectedTaskTitle = "General Focus"
+                            showTaskSelector = false
+                            startFocusSessionInternal()
+                        },
+                        color = DeepWorkBlue.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, DeepWorkBlue)
+                    ) {
+                        M3Text("General Focus", modifier = Modifier.padding(16.dp), color = Color.White)
+                    }
+                    
+                    tasks.filter { it.status != "Completed" }.forEach { task ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().clickable { 
+                                selectedTaskId = task.id
+                                selectedTaskTitle = task.title
+                                showTaskSelector = false
+                                startFocusSessionInternal()
+                            },
+                            color = Color.White.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            M3Text(task.title, modifier = Modifier.padding(16.dp), color = Color.White)
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 
     // Timer Logic: Increments every second if not paused
@@ -160,7 +212,7 @@ fun ActiveSessionScreen(
             Spacer(modifier = Modifier.height(48.dp))
 
             // 2. Subtitle
-            M3Text("Session #$sessionNumber • Coding", color = Color(0xFF64748B), fontSize = 14.sp)
+            M3Text("Session #$sessionNumber • $selectedTaskTitle", color = Color(0xFF64748B), fontSize = 14.sp)
 
             Spacer(modifier = Modifier.height(16.dp))
 

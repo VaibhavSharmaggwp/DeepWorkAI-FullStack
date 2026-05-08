@@ -25,6 +25,37 @@ data class HistoryEntry(
 
 class FocusRepository {
 
+    suspend fun calculateStreak(userId: String): Int = dbQuery {
+        val uId = UUID.fromString(userId)
+        val dates = FocusSessionsTable.slice(FocusSessionsTable.startTime)
+            .select { FocusSessionsTable.userId eq uId }
+            .map { it[FocusSessionsTable.startTime].toLocalDate() }
+            .distinct()
+            .sortedDescending()
+
+        if (dates.isEmpty()) return@dbQuery 0
+
+        var streak = 0
+        var currentDay = LocalDate.now()
+
+        // If no session today, check if there was one yesterday to keep streak alive
+        if (dates.first() != currentDay && dates.first() != currentDay.minusDays(1)) {
+            return@dbQuery 0
+        }
+
+        // Start from the most recent session date
+        var checkDate = dates.first()
+        for (date in dates) {
+            if (date == checkDate) {
+                streak++
+                checkDate = checkDate.minusDays(1)
+            } else {
+                break
+            }
+        }
+        streak
+    }
+
     suspend fun saveSessionAndUpdateAnalytics(
         userId: String,
         sessionId: String,
@@ -114,16 +145,29 @@ class FocusRepository {
             .reversed() // Order them from older -> newer
 
         val today = historyEntries.lastOrNull()
+        val todayScore = today?.get(DailyAnalyticsTable.avgFocusScore) ?: 0
+        val yesterdayScore = if (historyEntries.size >= 2) historyEntries[historyEntries.size - 2][DailyAnalyticsTable.avgFocusScore] else 0
+        
+        val trendValue = if (yesterdayScore > 0) {
+            ((todayScore - yesterdayScore).toDouble() / yesterdayScore * 100).toInt()
+        } else if (todayScore > 0) {
+            100
+        } else {
+            0
+        }
+        
+        val trendStr = if (trendValue >= 0) "+$trendValue%" else "$trendValue%"
+        val streakCount = calculateStreak(userId)
 
         AnalyticsDashboard(
             weeklyScores = historyEntries.map { it[DailyAnalyticsTable.avgFocusScore] },
             weeklyDeepMinutes = historyEntries.map { it[DailyAnalyticsTable.totalDeepMinutes] },
-            totalDeepMinutes = today?.get(DailyAnalyticsTable.totalDeepMinutes) ?: 0,
+            totalDeepMinutes = historyEntries.sumOf { it[DailyAnalyticsTable.totalDeepMinutes] },
             contextSwitches = today?.get(DailyAnalyticsTable.contextSwitches) ?: 0,
-            heatmap = today?.get(DailyAnalyticsTable.distractionHeatmap)
-                ?.split(",")?.mapNotNull { it.toIntOrNull() }?.takeIf { it.isNotEmpty() } ?: List(16) { 0 },
-            todayScore = today?.get(DailyAnalyticsTable.avgFocusScore) ?: 0,
-            trend = "+12%", // Keep trend static as per current UI expectation or move to ML later
+            heatmap = today?.get(DailyAnalyticsTable.distractionHeatmap)?.split(",")?.map { it.toInt() } ?: List(16) { 0 },
+            todayScore = todayScore,
+            trend = trendStr,
+            currentStreak = streakCount,
             cognitivePeakInsight = aiMap["peak"] ?: "Your brain enters flow state fastest between 9:00 AM and 11:30 AM.",
             consistencyInsight = aiMap["consistency"] ?: "Focus consistency improved by 21% compared to last week.",
             switchesInsight = aiMap["switches"] ?: "You switched apps 42 times during your last session."

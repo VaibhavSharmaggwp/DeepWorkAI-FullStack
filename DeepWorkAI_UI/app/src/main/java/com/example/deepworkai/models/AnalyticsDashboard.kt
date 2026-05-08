@@ -13,5 +13,6 @@ data class AnalyticsDashboard(
     val trend: String,
     val cognitivePeakInsight: String = "Your brain enters flow state fastest between 9:00 AM and 11:30 AM.",
     val consistencyInsight: String = "Focus consistency improved by 21% compared to last week.",
-    val switchesInsight: String = "You switched apps 42 times during your last session."
+    val switchesInsight: String = "You switched apps 42 times during your last session.",
+    val currentStreak: Int = 0
 )

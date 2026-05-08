@@ -5,8 +5,7 @@ import com.example.plugins.configureRouting
 import com.example.plugins.configureSerialization
 import com.example.repository.FocusRepository
 import com.example.repository.UserRepository
-import com.example.routes.allRoutes
-import com.example.routes.sessionHistoryRoutes
+import com.example.routes.*
 import com.example.security.GoogleAuthService
 import com.example.security.JwtService
 import io.ktor.server.http.content.*
@@ -29,9 +28,12 @@ fun Application.module() {
     val googleAuthService = GoogleAuthService()
 
     val repository = FocusRepository()
+    
     routing {
         allRoutes(repository)
         sessionHistoryRoutes(repository)
+        taskRoutes()
+        wellnessRoutes()
     }
 
     // 2. Initialize the Database

@@ -24,17 +24,20 @@ import com.example.deepworkai.models.FocusSession
 import android.os.Build
 import androidx.annotation.RequiresApi
 
-@RequiresApi(Build.VERSION_CODES.O)
+
 @Composable
 fun SessionHistoryItem(
     session: FocusSession,
     onClick: () -> Unit = {}
 ) {
     val durationMin = try {
-        val start = java.time.OffsetDateTime.parse(session.startTime)
-        val end = session.endTime?.let { java.time.OffsetDateTime.parse(it) } ?: start
-        java.time.Duration.between(start, end).toMinutes()
-    } catch (_: Exception) { 0 }
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+        val start = sdf.parse(session.startTime)
+        val end = session.endTime?.let { sdf.parse(it) } ?: start
+        if (start != null && end != null) {
+            (end.time - start.time) / (1000 * 60)
+        } else 0L
+    } catch (_: Exception) { 0L }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,10 +93,10 @@ fun SessionHistoryItem(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+
 @Preview
 @Composable
 fun SessionHistoryItemPreview() {
-    val mock = FocusSession("1", "userId", java.time.OffsetDateTime.now().toString(), null, 87, 2, 42, "Optimal")
+    val mock = FocusSession("1", "userId", "2023-10-27T10:00:00", null, 87, 2, 42, "Optimal")
     SessionHistoryItem(session = mock)
 }

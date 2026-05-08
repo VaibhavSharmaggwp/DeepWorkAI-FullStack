@@ -41,6 +41,7 @@ import com.example.deepworkai.ui.NotificationSettingsScreen
 import com.example.deepworkai.ui.ProfileScreen
 import com.example.deepworkai.ui.AboutScreen
 import com.example.deepworkai.ui.HelpScreen
+import com.example.deepworkai.ui.TaskPlannerScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -140,11 +141,14 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Notifications.route) {
                             NotificationSettingsScreen(navController = navController)
                         }
+                        composable(Screen.Help.route) {
+                            HelpScreen(navController = navController)
+                        }
                         composable(Screen.About.route) {
                             AboutScreen(navController = navController)
                         }
-                        composable(Screen.Help.route) {
-                            HelpScreen(navController = navController)
+                        composable(Screen.TaskPlanner.route) {
+                            TaskPlannerScreen(navController = navController)
                         }
                         composable("session_summary") {
                             SessionSummaryScreen(

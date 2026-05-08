@@ -60,6 +60,18 @@ import androidx.compose.material.icons.filled.Send
 import androidx.navigation.NavController
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Whatshot
+import com.example.deepworkai.viewmodel.WellnessViewModel
+
 import kotlinx.coroutines.Dispatchers
 
 @Composable
@@ -68,6 +80,7 @@ fun HomeScreen(
     onNavigateToActiveSession: () -> Unit = {},
     viewModel: SessionViewModel = viewModel(),
     analyticsViewModel: AnalyticsViewModel = viewModel(),
+    wellnessViewModel: WellnessViewModel = viewModel(),
     profileViewModel: com.example.deepworkai.viewmodel.ProfileViewModel = viewModel()
 ) {
     val user by profileViewModel.user
@@ -184,20 +197,23 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             val profileImageUrl = com.example.deepworkai.BuildConfig.BACKEND_URL + (user?.imageUrl ?: "")
+            val streakCount = analyticsViewModel.uiState.value?.currentStreak ?: 0
             HomeHeader(
                 userName = userName, 
                 greeting = greeting, 
                 currentDateTime = currentDateTime,
                 imageUrl = if (user?.imageUrl != null) profileImageUrl else null,
-                onProfileClick = { navController?.navigate(Screen.Profile.route) }
+                onProfileClick = { navController?.navigate(Screen.Profile.route) },
+                streakCount = streakCount
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
             val todayScore = analyticsViewModel.uiState.value?.todayScore ?: 0
+            val stabilityTrend = analyticsViewModel.uiState.value?.trend ?: "+0%"
             MainFocusCard(
                 focusTime = if (isSessionActive) formattedTime else "0h 00m",
-                progress = 12,
+                trend = stabilityTrend,
                 score = if (todayScore > 0) todayScore else (user?.focusScore ?: 0),
                 cognitiveLoad = cognitiveLoad,
                 dailyGoal = dailyGoalDisplay,
@@ -233,12 +249,21 @@ fun HomeScreen(
             GridMetrics(
                 distractionsCount = contextSwitches.toString(),
                 focusStability = todayScore,
+                trend = stabilityTrend,
                 onMetricsClick = {
                     navController?.navigate(Screen.DistractionInsights.route)
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Daily Focus Wellness
+            WellnessChecklist(
+                wellnessLog = wellnessViewModel.wellnessLog.value,
+                onUpdate = { s, h, m, e -> wellnessViewModel.updateWellness(s, h, m, e) }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             BurnoutRiskCard(
                 riskLevel = burnoutRisk,
@@ -254,6 +279,11 @@ fun HomeScreen(
 
             // Beautiful Animated Chat Banner
             AIChatBanner(onClick = { showChatbot = true })
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Smart Planner Entry
+            SmartPlannerCard(onClick = { navController?.navigate(Screen.TaskPlanner.route) })
 
             // Extra spacer so the FAB doesn't hide the last card
             Spacer(modifier = Modifier.height(100.dp))
@@ -388,7 +418,7 @@ fun AwesomeButton(onClick: () -> Unit) {
 
 
 @Composable
-fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, imageUrl: String? = null, onProfileClick: () -> Unit = {}) {
+fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, imageUrl: String? = null, onProfileClick: () -> Unit = {}, streakCount: Int = 0) {
     val dateFormatter = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("hh:mm:ss a", Locale.getDefault()) }
 
@@ -418,12 +448,19 @@ fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, im
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold
             )
-            M3Text(
-                text = "$greeting, $userName",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                M3Text(
+                    text = "$greeting, $userName",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (streakCount > 0) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Whatshot, contentDescription = "Streak", tint = Color(0xFFF97316), modifier = Modifier.size(20.dp))
+                    M3Text(text = streakCount.toString(), color = Color(0xFFF97316), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
         }
         }
         
@@ -457,7 +494,7 @@ fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, im
 @Composable
 fun MainFocusCard(
     focusTime: String,
-    progress: Int,
+    trend: String,
     score: Int,
     cognitiveLoad: String,
     dailyGoal: String,
@@ -475,7 +512,12 @@ fun MainFocusCard(
                 Row(verticalAlignment = Alignment.Bottom) {
                     M3Text(focusTime, color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
-                    M3Text("↑ $progress%", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold)
+                    
+                    val isPositive = trend.startsWith("+")
+                    val trendColor = if (isPositive) Color(0xFF4ADE80) else Color(0xFFEF4444)
+                    val arrow = if (isPositive) "↑" else "↓"
+                    
+                    M3Text("$arrow $trend", color = trendColor, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -650,9 +692,14 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 
                 val maxMinutes = paddedData.maxOrNull()?.coerceAtLeast(1) ?: 1
                 
-                val today = java.time.LocalDate.now()
-                val labels = (0..6).map { i ->
-                    today.minusDays((6 - i).toLong()).dayOfWeek.name.take(1)
+                val labels = remember {
+                    val cal = java.util.Calendar.getInstance()
+                    val sdf = java.text.SimpleDateFormat("E", java.util.Locale.getDefault())
+                    (0..6).map { i ->
+                        val tempCal = cal.clone() as java.util.Calendar
+                        tempCal.add(java.util.Calendar.DAY_OF_YEAR, -(6 - i))
+                        sdf.format(tempCal.time).take(1)
+                    }
                 }
 
                 Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
@@ -745,7 +792,7 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 }
 
 @Composable
-fun GridMetrics(distractionsCount: String = "0", focusStability: Int = 85, onMetricsClick: () -> Unit = {}) {
+fun GridMetrics(distractionsCount: String = "0", focusStability: Int = 85, trend: String = "+0%", onMetricsClick: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         // Focus Stability Card
@@ -754,7 +801,7 @@ fun GridMetrics(distractionsCount: String = "0", focusStability: Int = 85, onMet
             modifier = Modifier.weight(1f),
             title = "Focus Stability",
             value = "$focusStability%",
-            trend = "+4%",
+            trend = trend,
             icon = Icons.Default.Lightbulb,
             iconColor = stabilityColor,
             valueColor = stabilityColor
@@ -799,7 +846,11 @@ fun MetricCard(
                 }
                 if (trend.isNotEmpty()) {
                     Spacer(modifier = Modifier.weight(1f))
-                    Badge(containerColor = Color(0xFF143224), contentColor = Color(0xFF4ADE80)) {
+                    val isPositive = trend.startsWith("+")
+                    val badgeBg = if (isPositive) Color(0xFF143224) else Color(0xFF321414)
+                    val badgeContent = if (isPositive) Color(0xFF4ADE80) else Color(0xFFEF4444)
+                    
+                    Badge(containerColor = badgeBg, contentColor = badgeContent) {
                         M3Text(trend, fontSize = 10.sp)
                     }
                 }
@@ -1060,3 +1111,153 @@ fun AIChatBanner(onClick: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun SmartPlannerCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFF6366F1).copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.EventNote, contentDescription = null, tint = Color(0xFF818CF8))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                M3Text(
+                    text = "Smart Planner",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                M3Text(
+                    text = "Sync tasks with your focus peaks",
+                    color = DeepWorkTextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(Icons.Default.ArrowForwardIos, contentDescription = null, tint = DeepWorkTextSecondary, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+fun WellnessChecklist(
+    wellnessLog: com.example.deepworkai.models.WellnessLog?,
+    onUpdate: (Int?, Int?, Boolean?, Boolean?) -> Unit
+) {
+    Column {
+        M3Text(
+            text = "Daily Focus Wellness",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = DeepWorkSurface,
+            shape = RoundedCornerShape(24.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                WellnessRow(
+                    icon = Icons.Default.Bedtime,
+                    title = "Sleep",
+                    value = "${wellnessLog?.sleepHours ?: 0}h",
+                    onIncrement = { onUpdate((wellnessLog?.sleepHours ?: 0) + 1, null, null, null) },
+                    onDecrement = { onUpdate(((wellnessLog?.sleepHours ?: 0) - 1).coerceAtLeast(0), null, null, null) }
+                )
+                Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.05f))
+                WellnessRow(
+                    icon = Icons.Default.WaterDrop,
+                    title = "Hydration",
+                    value = "${wellnessLog?.hydrationLevel ?: 0} glasses",
+                    onIncrement = { onUpdate(null, (wellnessLog?.hydrationLevel ?: 0) + 1, null, null) },
+                    onDecrement = { onUpdate(null, ((wellnessLog?.hydrationLevel ?: 0) - 1).coerceAtLeast(0), null, null) }
+                )
+                Divider(modifier = Modifier.padding(vertical = 12.dp), color = Color.White.copy(alpha = 0.05f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WellnessToggle(
+                        icon = Icons.Default.SelfImprovement,
+                        title = "Meditated",
+                        isSelected = wellnessLog?.meditated ?: false,
+                        onClick = { onUpdate(null, null, !(wellnessLog?.meditated ?: false), null) }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    WellnessToggle(
+                        icon = Icons.Default.FitnessCenter,
+                        title = "Exercise",
+                        isSelected = wellnessLog?.exercise ?: false,
+                        onClick = { onUpdate(null, null, null, !(wellnessLog?.exercise ?: false)) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WellnessRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = DeepWorkBlue, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        M3Text(text = title, color = Color.White, modifier = Modifier.weight(1f))
+        
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDecrement, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Remove, contentDescription = null, tint = DeepWorkTextSecondary)
+            }
+            M3Text(text = value, color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
+            IconButton(onClick = onIncrement, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = DeepWorkBlue)
+            }
+        }
+    }
+}
+
+@Composable
+fun RowScope.WellnessToggle(
+    icon: ImageVector,
+    title: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.weight(1f).clickable { onClick() },
+        color = if (isSelected) DeepWorkBlue.copy(alpha = 0.1f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) DeepWorkBlue else Color.White.copy(alpha = 0.05f))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, contentDescription = null, tint = if (isSelected) DeepWorkBlue else DeepWorkTextSecondary)
+            Spacer(modifier = Modifier.height(4.dp))
+            M3Text(text = title, color = if (isSelected) Color.White else DeepWorkTextSecondary, fontSize = 12.sp)
+        }
+    }
+}
+

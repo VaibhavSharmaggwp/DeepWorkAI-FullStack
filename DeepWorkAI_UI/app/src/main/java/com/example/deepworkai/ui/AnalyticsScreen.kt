@@ -264,7 +264,7 @@ fun TimeToggleSection(selectedPeriod: String, onToggle: () -> Unit) {
 @Composable
 fun FocusScoreCard(
     score: Int = 84,
-    scoreTrend: String = "+12%",
+    scoreTrend: String = "+0%",
     weeklyScores: List<Int> = listOf(40, 60, 55, 70, 84, 80, 92),
     isMonthly: Boolean = false
 ) {
@@ -284,13 +284,18 @@ fun FocusScoreCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(score.toString(), color = Color(0xFF2563EB), fontSize = 48.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.width(12.dp))
+                        
+                        val isPositive = scoreTrend.startsWith("+")
+                        val trendColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444)
+                        val trendIcon = if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown
+                        
                         Icon(
-                            Icons.Default.TrendingUp,
+                            trendIcon,
                             contentDescription = null,
-                            tint = Color(0xFF10B981),
+                            tint = trendColor,
                             modifier = Modifier.size(16.dp)
                         )
-                        Text(" $scoreTrend", color = Color(0xFF10B981), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(" $scoreTrend", color = trendColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Surface(
@@ -747,7 +752,7 @@ fun AnalyticsScreenPreview() {
         contextSwitches = 42,
         heatmap = listOf(1, 2, 4, 1, 0, 5, 2, 0, 2, 0, 3, 0, 0, 0, 2, 0),
         todayScore = 84,
-        trend = "+12%"
+        trend = "+0%"
     )
     AnalyticsContent(data = mockData, isLoading = false, selectedPeriod = "Weekly")
 }

@@ -24,8 +24,9 @@ fun Route.allRoutes(repository: FocusRepository) {
         post("/start") {
             try {
                 val request = call.receive<StartSessionRequest>()
-                println("FocusRoutes: Starting session for user ${request.userId}")
-                val session = DatabaseFactory.startFocusSession(UUID.fromString(request.userId))
+                println("FocusRoutes: Starting session for user ${request.userId}, task ${request.taskId}")
+                val taskId = request.taskId?.let { UUID.fromString(it) }
+                val session = DatabaseFactory.startFocusSession(UUID.fromString(request.userId), taskId)
                 if (session != null) {
                     println("FocusRoutes: Session started with ID ${session.id}")
                     call.respond(HttpStatusCode.Created, session)

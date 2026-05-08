@@ -28,6 +28,7 @@ object FocusSessionsTable : Table("focus_sessions") {
     val sessionNumber = integer("session_number").default(1)
     val burnoutRisk = varchar("burnout_risk", 50).nullable()
     val cognitiveLoad = varchar("cognitive_load", 50).nullable()
+    val taskId = uuid("task_id").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -42,8 +43,35 @@ object SessionHistoryTable: Table("session_history"){
     val focusStability = integer("focus_stability")
     val avgDeepBlock = integer("avg_deep_block")
     val cognitiveLoadStatus = varchar("cognitive_load_status", 20)
+    val taskId = uuid("task_id").nullable()
 
     override val primaryKey = PrimaryKey(id)
+}
+
+object TasksTable : Table("tasks") {
+    val id = uuid("id")
+    val userId = uuid("user_id")
+    val title = varchar("title", 255)
+    val description = text("description").nullable()
+    val category = varchar("category", 50).default("Shallow") // Deep or Shallow
+    val status = varchar("status", 50).default("Pending") // Pending, In-Progress, Completed
+    val estimatedMinutes = integer("estimated_minutes").default(30)
+    val actualMinutes = integer("actual_minutes").default(0)
+    val createdAt = datetime("created_at")
+    val completedAt = datetime("completed_at").nullable()
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+object WellnessTable : Table("wellness_logs") {
+    val userId = uuid("user_id")
+    val logDate = date("log_date")
+    val sleepHours = integer("sleep_hours").default(0)
+    val hydrationLevel = integer("hydration_level").default(0)
+    val meditated = bool("meditated").default(false)
+    val exercise = bool("exercise").default(false)
+
+    override val primaryKey = PrimaryKey(userId, logDate)
 }
 
 object DistractionLogsTable: Table("distraction_logs") {

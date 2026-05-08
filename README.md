@@ -4,31 +4,36 @@ DeepWorkAI is a sophisticated, full-stack productivity suite designed for knowle
 
 ## ✨ Key Features
 
+### 📅 Smart Task Planner
+*   **Deep vs. Shallow Categorization**: AI-driven task sorting based on complexity.
+*   **Session-Task Linking**: Associate focus sessions with specific planned tasks for granular productivity insights.
+*   **Priority Management**: Organize your day to align with your cognitive peaks.
+
+### 🧘 Daily Focus Wellness
+*   **Lifestyle Tracking**: Log Sleep, Hydration, Meditation, and Exercise to see how they impact your focus.
+*   **Pre-Flight Checklist**: A premium manual tracker to ensure you're in the best state for deep work.
+
 ### 📱 Android Application (Jetpack Compose)
 *   **Intelligent Session Tracking**: Start and stop deep work sessions with a single tap.
 *   **Dynamic Analytics Dashboard**: Visualize your productivity with beautiful charts for Weekly and Monthly performance.
+*   **Gamified Consistency**: Stay motivated with the **DeepWork Streak** fire system.
 *   **Cognitive Load Monitoring**: Real-time tracking of your mental stamina based on focus duration and intensity.
 *   **Smart Distraction Whitelisting**: Select only the apps you need for work; DeepWorkAI monitors the rest without invading your privacy.
-*   **Session History**: A detailed log of every deep work session, complete with stability scores and burnout risk assessments.
-*   **Animated AI Entry**: A pulsating, beautiful chatbot banner for a premium user experience.
 
 ### 🤖 AI Productivity Assistant (LLM Integration)
 *   **Context-Aware Chatbot**: Integrated **Qwen-2.5-72B-Instruct** model via HuggingFace Inference API.
 *   **Data-Driven Insights**: The AI analyzes your real focus scores and distraction patterns to give personalized advice.
 *   **Schedule Optimization**: Share your daily routine with the AI to get a tailored productivity plan.
-*   **Conversational UI**: A sleek Modal Bottom Sheet interface for seamless interaction.
 
 ### ⚙️ Robust Backend (Ktor)
 *   **Scalable Architecture**: Built with Kotlin and Ktor for high performance and low latency.
 *   **Secure Authentication**: JWT-based security and Google OAuth integration for seamless, safe login.
-*   **PostgreSQL Persistence**: Reliable data storage for all your focus history and analytics.
-*   **Python ML Bridge**: Seamlessly communicates with the machine learning service using ProcessBuilder.
+*   **PostgreSQL Persistence**: Reliable data storage for all your focus history, tasks, and wellness logs.
 
 ### 🧠 Machine Learning Service (Python)
 *   **Burnout Risk Prediction**: Analyzes session duration and distraction frequency to warn you before you overwork.
-*   **Distraction Recommendations**: Identifies which apps are your biggest "focus killers" and suggests interventions.
+*   **Professional PDF Reporting**: Generates comprehensive, premium focus reports with trend analysis and AI recommendations.
 *   **Flow State Analysis**: Uses data-driven models to predict your "Cognitive Peak" hours.
-*   **Automated PDF Reporting**: Generates comprehensive focus reports to track your long-term progress.
 
 ## 🏗️ Project Structure
 

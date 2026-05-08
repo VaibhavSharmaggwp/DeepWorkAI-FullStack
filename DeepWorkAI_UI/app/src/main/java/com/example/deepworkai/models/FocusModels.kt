@@ -11,11 +11,12 @@ data class FocusSession(
     val focusScore: Int = 0,
     val distractions: Int = 0,
     val sessionNumber: Int = 1,
-    val cognitiveLoad: String = "Low"
+    val cognitiveLoad: String = "Low",
+    val taskId: String? = null
 )
 
 @Serializable
-data class StartSessionRequest(val userId: String)
+data class StartSessionRequest(val userId: String, val taskId: String? = null)
 
 @Serializable
 data class EndSessionRequest(

@@ -25,7 +25,7 @@ object DatabaseFactory{
             val database = Database.connect(jdbcUrl, driverClassName, user, password)
 
             transaction(database){
-                SchemaUtils.createMissingTablesAndColumns(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable)
+                SchemaUtils.createMissingTablesAndColumns(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable, TasksTable, WellnessTable)
                 println("DatabaseFactory: Schema verified (tables and columns created/updated)")
             }
             println("DatabaseFactory: Connection successful")
@@ -40,7 +40,7 @@ object DatabaseFactory{
         newSuspendedTransaction(Dispatchers.IO) { block() }
 
 
-    suspend fun startFocusSession(userId: UUID): FocusSession? = dbQuery {
+    suspend fun startFocusSession(userId: UUID, taskId: UUID? = null): FocusSession? = dbQuery {
         val sessionId = UUID.randomUUID()
         val startTime = LocalDateTime.now()
 
@@ -52,6 +52,7 @@ object DatabaseFactory{
             it[FocusSessionsTable.userId] = userId
             it[FocusSessionsTable.startTime] = startTime
             it[FocusSessionsTable.sessionNumber] = nextSessionNumber
+            it[FocusSessionsTable.taskId] = taskId
         }
 
         if (result.insertedCount > 0) {
@@ -59,7 +60,8 @@ object DatabaseFactory{
                 id = sessionId.toString(),
                 userId = userId.toString(),
                 startTime = startTime.toString(),
-                sessionNumber = nextSessionNumber
+                sessionNumber = nextSessionNumber,
+                taskId = taskId?.toString()
             )
         } else null
     }
