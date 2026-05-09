@@ -169,7 +169,7 @@ fun HomeScreen(
     }
 
     var showDailyGoalDialog by remember { mutableStateOf(false) }
-    var dailyGoalDisplay by remember { mutableStateOf("----") }
+    var dailyGoalDisplay by remember { mutableStateOf("2h 00m") }
 
     Scaffold(
         containerColor = DeepWorkBackground,

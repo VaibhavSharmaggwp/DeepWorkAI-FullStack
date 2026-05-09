@@ -67,8 +67,8 @@ fun ActiveSessionScreen(
     var sessionNumber by remember { mutableIntStateOf(1) }
     
     var seconds by remember { mutableIntStateOf(0) } // Count up from 0
-    val maxSeconds = 1500 // 25 mins
-    val targetDurationMinutes = maxSeconds / 60
+    var maxSeconds by remember { mutableIntStateOf(3600) } // Default 1 hour
+    var targetDurationMinutes by remember { mutableIntStateOf(60) }
     
     var distractions by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -78,6 +78,10 @@ fun ActiveSessionScreen(
 
     var showNextBreakDialog by remember { mutableStateOf(false) }
     var nextBreakDisplay by remember { mutableStateOf("5 minutes") }
+    var breakTimeSeconds by remember { mutableIntStateOf(-1) }
+    var showBreakPopup by remember { mutableStateOf(false) }
+    var showCompletionPopup by remember { mutableStateOf(false) }
+    var brainFocusValue by remember { mutableIntStateOf(85) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -120,6 +124,8 @@ fun ActiveSessionScreen(
                         modifier = Modifier.fillMaxWidth().clickable { 
                             selectedTaskId = null
                             selectedTaskTitle = "General Focus"
+                            maxSeconds = 3600
+                            targetDurationMinutes = 60
                             showTaskSelector = false
                             startFocusSessionInternal()
                         },
@@ -135,6 +141,8 @@ fun ActiveSessionScreen(
                             modifier = Modifier.fillMaxWidth().clickable { 
                                 selectedTaskId = task.id
                                 selectedTaskTitle = task.title
+                                maxSeconds = task.estimatedMinutes * 60
+                                targetDurationMinutes = task.estimatedMinutes
                                 showTaskSelector = false
                                 startFocusSessionInternal()
                             },
@@ -160,17 +168,28 @@ fun ActiveSessionScreen(
                 delay(500) // Polling interval while paused
             }
         }
-        // Auto-finish if timer completes
+        // Auto-show completion popup if timer completes
         if (seconds >= maxSeconds) {
-            coroutineScope.launch {
-                var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
-                sessionId?.let { id ->
-                    val endTime = System.currentTimeMillis()
-                    val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
-                    finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
-                }
-                onFinish(finalResult)
-            }
+            showCompletionPopup = true
+            isPaused = true
+        }
+    }
+
+    // Break & Brain Focus Logic
+    LaunchedEffect(seconds) {
+        // Check for break
+        if (breakTimeSeconds > 0 && seconds >= breakTimeSeconds) {
+            showBreakPopup = true
+            isPaused = true
+            breakTimeSeconds = -1 // Reset
+        }
+        
+        // Update Brain Focus every 10 seconds
+        if (seconds > 0 && seconds % 10 == 0 && !isPaused) {
+            val distractionPenalty = distractions * 2
+            val baseFocus = if (cognitiveLoad == "High") 90 else if (cognitiveLoad == "Medium") 82 else 75
+            val randomJitter = (-3..3).random()
+            brainFocusValue = (baseFocus - distractionPenalty + randomJitter).coerceIn(40, 100)
         }
     }
 
@@ -311,8 +330,8 @@ fun ActiveSessionScreen(
                 )
                 MetricCard(
                     icon = Icons.Default.Psychology,
-                    value = if (cognitiveLoad == "High") "92%" else if (cognitiveLoad == "Medium") "85%" else "64%",
-                    label = "BRAIN LOAD ($cognitiveLoad)",
+                    value = "$brainFocusValue%",
+                    label = "BRAIN FOCUS",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -450,6 +469,8 @@ fun ActiveSessionScreen(
                                     .fillMaxWidth()
                                     .clickable {
                                         nextBreakDisplay = breakTime
+                                        val mins = breakTime.split(" ")[0].toInt()
+                                        breakTimeSeconds = seconds + (mins * 60)
                                         showNextBreakDialog = false
                                     },
                                 color = if (nextBreakDisplay == breakTime) DeepWorkBlue.copy(alpha = 0.2f) else Color.Transparent,
@@ -490,6 +511,67 @@ fun ActiveSessionScreen(
                         onFinish(finalResult)
                     }
                 }
+            )
+        }
+
+        if (showBreakPopup) {
+            AlertDialog(
+                onDismissRequest = { showBreakPopup = false; isPaused = false },
+                containerColor = Color(0xFF13171D),
+                title = { M3Text("Break Time! ☕", color = Color.White, fontWeight = FontWeight.Bold) },
+                text = { M3Text("Yayyy for completed this! You may take a break now.", color = Color(0xFF94A3B8)) },
+                confirmButton = {
+                    Button(
+                        onClick = { showBreakPopup = false; isPaused = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue)
+                    ) {
+                        M3Text("Continue", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBreakPopup = false; isPaused = true }) {
+                        M3Text("Take a Break", color = DeepWorkBlue)
+                    }
+                },
+                shape = RoundedCornerShape(28.dp)
+            )
+        }
+
+        if (showCompletionPopup) {
+            AlertDialog(
+                onDismissRequest = { /* Force action */ },
+                containerColor = Color(0xFF13171D),
+                title = { M3Text("Session Complete! 🎉", color = Color.White, fontWeight = FontWeight.Bold) },
+                text = { M3Text("Yayyy you completed it! Do you want to exit or continue focusing?", color = Color(0xFF94A3B8)) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showCompletionPopup = false
+                            coroutineScope.launch {
+                                var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
+                                sessionId?.let { id ->
+                                    val endTime = System.currentTimeMillis()
+                                    val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                                    finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
+                                }
+                                onFinish(finalResult)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue)
+                    ) {
+                        M3Text("Exit", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { 
+                        showCompletionPopup = false 
+                        maxSeconds += 1500 // Add 25 more minutes
+                        isPaused = false 
+                    }) {
+                        M3Text("Continue", color = DeepWorkBlue)
+                    }
+                },
+                shape = RoundedCornerShape(28.dp)
             )
         }
     }
