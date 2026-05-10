@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -33,12 +34,15 @@ import com.example.deepworkai.viewmodel.SessionViewModel
 fun AnalyticsScreen(
     navController: NavController? = null,
     viewModel: AnalyticsViewModel = viewModel(),
-    sessionViewModel: SessionViewModel = viewModel()
+    sessionViewModel: SessionViewModel = viewModel(),
+    profileViewModel: com.example.deepworkai.viewmodel.ProfileViewModel = viewModel()
 ) {
     val data by viewModel.uiState
     val isLoading by viewModel.isLoading
+    val user by profileViewModel.user
 
     LaunchedEffect(Unit) {
+        profileViewModel.fetchProfile()
         sessionViewModel.updateCognitiveLoad() // Refresh dynamic load on entry
     }
 
@@ -47,6 +51,7 @@ fun AnalyticsScreen(
     AnalyticsContent(
         data = data,
         isLoading = isLoading,
+        userImageUrl = user?.imageUrl,
         selectedPeriod = viewModel.selectedPeriod.value,
         navController = navController,
         onTogglePeriod = { viewModel.togglePeriod() },
@@ -58,6 +63,7 @@ fun AnalyticsScreen(
 fun AnalyticsContent(
     data: AnalyticsDashboard?,
     isLoading: Boolean,
+    userImageUrl: String? = null,
     selectedPeriod: String = "Weekly",
     navController: NavController? = null,
     onTogglePeriod: () -> Unit = {},
@@ -82,8 +88,11 @@ fun AnalyticsContent(
                         .padding(horizontal = 20.dp)
                 ) {
                     Spacer(modifier = Modifier.height(24.dp))
-
-                    AnalyticsHeader()
+ 
+                    AnalyticsHeader(
+                        imageUrl = userImageUrl,
+                        onProfileClick = { navController?.navigate(Screen.Profile.route) }
+                    )
 
                     Spacer(modifier = Modifier.height(28.dp))
 
@@ -206,7 +215,7 @@ fun AnalyticsContent(
 }
 
 @Composable
-fun AnalyticsHeader() {
+fun AnalyticsHeader(imageUrl: String? = null, onProfileClick: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -225,11 +234,32 @@ fun AnalyticsHeader() {
                 fontSize = 14.sp
             )
         }
-        Surface(
-            modifier = Modifier.size(44.dp),
-            shape = CircleShape,
-            color = Color(0xFFFFCC99)
-        ) {}
+        
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF161B22))
+                .border(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f), CircleShape)
+                .clickable { onProfileClick() }
+        ) {
+            if (imageUrl != null) {
+                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else com.example.deepworkai.BuildConfig.BACKEND_URL + imageUrl
+                Image(
+                    painter = coil.compose.rememberAsyncImagePainter(fullUrl),
+                    contentDescription = "Profile",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    Icons.Default.Person, 
+                    contentDescription = null, 
+                    tint = Color.Gray, 
+                    modifier = Modifier.fillMaxSize().padding(10.dp)
+                )
+            }
+        }
     }
 }
 

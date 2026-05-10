@@ -78,44 +78,57 @@ fun Application.configureProfileRoutes() {
                         return@post
                     }
 
-                    val multipart = call.receiveMultipart()
-                    var fileName = ""
-                    
-                    multipart.forEachPart { part ->
-                        if (part is PartData.FileItem) {
-                            val name = part.originalFileName ?: "profile.jpg"
-                            val extension = name.substringAfterLast(".", "jpg")
-                            fileName = "profile_${userIdStr}_${System.currentTimeMillis()}.$extension"
-                            
-                            val uploadDir = File("uploads/profile_pics")
-                            if (!uploadDir.exists()) uploadDir.mkdirs()
-                            
-                            val file = File(uploadDir, fileName)
-                            part.streamProvider().use { input ->
-                                file.outputStream().buffered().use { output ->
-                                    input.copyTo(output)
+                    try {
+                        val multipart = call.receiveMultipart()
+                        var savedImageUrl: String? = null
+                        val storageService = com.example.service.StorageService()
+
+                        multipart.forEachPart { part ->
+                            if (part is PartData.FileItem) {
+                                val bytes = part.streamProvider().readBytes()
+                                val originalName = part.originalFileName ?: "profile.jpg"
+                                savedImageUrl = storageService.saveProfileImage(bytes, userIdStr, originalName)
+                            }
+                            part.dispose()
+                        }
+
+                        if (savedImageUrl != null) {
+                            dbQuery {
+                                Users.update({ Users.id eq UUID.fromString(userIdStr) }) {
+                                    it[imageUrl] = savedImageUrl!!
                                 }
                             }
+                            call.respond(mapOf("imageUrl" to savedImageUrl!!))
+                        } else {
+                            call.respond(HttpStatusCode.BadRequest, "No image file found in request")
                         }
-                        part.dispose()
-                    }
-
-                    if (fileName.isNotEmpty()) {
-                        val savedImageUrl = "/uploads/profile_pics/$fileName"
-                        dbQuery {
-                            Users.update({ Users.id eq UUID.fromString(userIdStr) }) {
-                                it[imageUrl] = savedImageUrl
-                            }
-                        }
-                        call.respond(mapOf("imageUrl" to savedImageUrl))
-                    } else {
-                        call.respond(HttpStatusCode.BadRequest, "No image uploaded")
+                    } catch (e: Exception) {
+                        println("Error uploading image: ${e.message}")
+                        e.printStackTrace()
+                        call.respond(HttpStatusCode.InternalServerError, "Failed to process image: ${e.message}")
                     }
                 }
-            }
-        }
-    }
-}
+ 
+                 post("/cognitive/record") {
+                     val principal = call.principal<JWTPrincipal>()
+                     val userIdStr = principal?.payload?.getClaim("userId")?.asString()
+                     if (userIdStr == null) {
+                         call.respond(HttpStatusCode.Unauthorized, "Missing user ID")
+                         return@post
+                     }
+ 
+                     val request = call.receive<CognitiveResultRequest>()
+                     val newStreak = com.example.db.DatabaseFactory.recordCognitiveResult(
+                         UUID.fromString(userIdStr),
+                         request.level,
+                         request.score
+                     )
+                     call.respond(mapOf("streak" to newStreak))
+                 }
+             }
+         }
+     }
+ }
 
 private fun toUser(row: org.jetbrains.exposed.sql.ResultRow, calculatedScore: Int): User = User(
     id = row[Users.id].toString(),
@@ -129,7 +142,8 @@ private fun toUser(row: org.jetbrains.exposed.sql.ResultRow, calculatedScore: In
     behavioralTracking = row[Users.behavioralTracking],
     notificationsEnabled = row[Users.notificationsEnabled],
     notificationType = row[Users.notificationType],
-    notificationTime = row[Users.notificationTime]
+    notificationTime = row[Users.notificationTime],
+    cognitiveStreak = row[Users.cognitiveStreak]
 )
 
 @kotlinx.serialization.Serializable
@@ -139,3 +153,6 @@ data class UserUpdateRequest(
     val notificationType: String? = null,
     val notificationTime: String? = null
 )
+
+@kotlinx.serialization.Serializable
+data class CognitiveResultRequest(val level: Int, val score: Int)

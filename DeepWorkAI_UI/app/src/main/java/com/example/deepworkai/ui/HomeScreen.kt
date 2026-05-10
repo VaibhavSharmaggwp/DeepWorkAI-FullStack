@@ -456,11 +456,6 @@ fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, im
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                if (streakCount > 0) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Whatshot, contentDescription = "Streak", tint = Color(0xFFF97316), modifier = Modifier.size(20.dp))
-                    M3Text(text = streakCount.toString(), color = Color(0xFFF97316), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
             }
         }
         }

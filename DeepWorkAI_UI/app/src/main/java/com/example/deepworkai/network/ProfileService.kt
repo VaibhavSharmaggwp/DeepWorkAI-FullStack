@@ -59,4 +59,15 @@ class ProfileService {
             null
         }
     }
+    suspend fun recordCognitiveResult(level: Int, score: Int): Int? {
+        return try {
+            val response: Map<String, Int> = client.post("${NetworkPreferences.backendUrl}/api/user/profile/cognitive/record") {
+                contentType(ContentType.Application.Json)
+                setBody(mapOf("level" to level, "score" to score))
+            }.body()
+            response["streak"]
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

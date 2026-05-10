@@ -54,13 +54,32 @@ class ProfileViewModel : ViewModel() {
     fun uploadImage(file: File) {
         viewModelScope.launch {
             _isLoading.value = true
-            val imageUrl = profileService.uploadProfileImage(file)
-            if (imageUrl != null) {
-                fetchProfile() // Refresh to get updated user with image URL
-            } else {
-                _error.value = "Failed to upload image"
+            _error.value = null
+            try {
+                val imageUrl = profileService.uploadProfileImage(file)
+                if (imageUrl != null) {
+                    fetchProfile() // Refresh to get updated user with image URL
+                } else {
+                    _error.value = "Failed to upload image. Please check your connection."
+                }
+            } catch (e: Exception) {
+                _error.value = "Error: ${e.message}"
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
+    }
+
+    fun recordCognitiveResult(level: Int, score: Int) {
+        viewModelScope.launch {
+            val newStreak = profileService.recordCognitiveResult(level, score)
+            if (newStreak != null) {
+                fetchProfile() // Refresh streak
+            }
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

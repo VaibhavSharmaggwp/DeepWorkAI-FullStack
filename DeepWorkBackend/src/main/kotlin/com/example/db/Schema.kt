@@ -84,3 +84,13 @@ object DistractionLogsTable: Table("distraction_logs") {
 
     override val primaryKey = PrimaryKey(id)
 }
+
+object CognitiveChallengesTable : Table("cognitive_challenges") {
+    val id = uuid("id")
+    val userId = uuid("user_id")
+    val level = integer("level")
+    val score = integer("score")
+    val playedAt = datetime("played_at")
+
+    override val primaryKey = PrimaryKey(id)
+}

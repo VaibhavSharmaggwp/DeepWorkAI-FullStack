@@ -25,7 +25,7 @@ object DatabaseFactory{
             val database = Database.connect(jdbcUrl, driverClassName, user, password)
 
             transaction(database){
-                SchemaUtils.createMissingTablesAndColumns(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable, TasksTable, WellnessTable)
+                SchemaUtils.createMissingTablesAndColumns(Users, FocusSessionsTable, DailyAnalyticsTable, SessionHistoryTable, DistractionLogsTable, TasksTable, WellnessTable, com.example.db.CognitiveChallengesTable)
                 println("DatabaseFactory: Schema verified (tables and columns created/updated)")
             }
             println("DatabaseFactory: Connection successful")
@@ -210,5 +210,41 @@ object DatabaseFactory{
             counter++
         }
         resultList
+    }
+
+    suspend fun recordCognitiveResult(userId: UUID, level: Int, score: Int): Int = dbQuery {
+        val today = java.time.LocalDate.now()
+        val userRow = Users.select { Users.id eq userId }.singleOrNull()
+        
+        if (userRow != null) {
+            val lastPlay = userRow[Users.lastCognitivePlay]
+            val currentStreak = userRow[Users.cognitiveStreak]
+            
+            var newStreak = currentStreak
+            if (lastPlay == null) {
+                newStreak = 1
+            } else if (lastPlay == today.minusDays(1)) {
+                newStreak += 1
+            } else if (lastPlay != today) {
+                newStreak = 1
+            }
+            
+            // Update User Streak
+            Users.update({ Users.id eq userId }) {
+                it[Users.cognitiveStreak] = newStreak
+                it[Users.lastCognitivePlay] = today
+            }
+            
+            // Insert Result
+            CognitiveChallengesTable.insert {
+                it[CognitiveChallengesTable.id] = UUID.randomUUID()
+                it[CognitiveChallengesTable.userId] = userId
+                it[CognitiveChallengesTable.level] = level
+                it[CognitiveChallengesTable.score] = score
+                it[CognitiveChallengesTable.playedAt] = LocalDateTime.now()
+            }
+            
+            newStreak
+        } else 0
     }
 }

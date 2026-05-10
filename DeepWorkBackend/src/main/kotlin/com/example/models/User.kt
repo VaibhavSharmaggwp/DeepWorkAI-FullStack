@@ -15,5 +15,6 @@ data class User(
     val behavioralTracking: Boolean = false,
     val notificationsEnabled: Boolean = true,
     val notificationType: String = "notification",
-    val notificationTime: String = "09:00"
+    val notificationTime: String = "09:00",
+    val cognitiveStreak: Int = 0
 )
