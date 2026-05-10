@@ -106,7 +106,11 @@ fun AnalyticsContent(
                     ) {
                         val hours = String.format("%.1fh", data.totalDeepMinutes / 60.0)
                         CognitiveLoadCard(modifier = Modifier.weight(1f), hours = hours)
-                        DistractionsCard(modifier = Modifier.weight(1.1f), heatmap = data.heatmap)
+                        FlowIntensityCard(
+                            modifier = Modifier.weight(1.1f), 
+                            heatmap = data.heatmap,
+                            onClick = { navController?.navigate(Screen.FlowInsights.route) }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
@@ -133,9 +137,10 @@ fun AnalyticsContent(
                         icon = Icons.Default.Psychology,
                         iconColor = Color(0xFF3B82F6),
                         title = "Cognitive Peak",
-                        badge = "HIGH CONFIDENCE",
-                        description = data.cognitivePeakInsight, // Crazy kiya re
-                        action = "Schedule Focus Block"
+                        badge = if (data.todayScore > 80) "HIGH CONFIDENCE" else "AI PREDICTION",
+                        description = data.cognitivePeakInsight,
+                        action = "Optimize Vitality",
+                        onActionClick = { navController?.navigate(Screen.Vitality.route) }
                     )
 
                     InsightItem(
@@ -146,10 +151,13 @@ fun AnalyticsContent(
                     )
 
                     InsightItem(
-                        icon = Icons.Default.NotificationsOff,
+                        icon = Icons.Default.Gamepad,
                         iconColor = Color(0xFF8B5CF6),
-                        title = "Context Switching",
-                        description = data.switchesInsight // ye bni na baat
+                        title = "Cognitive Challenge",
+                        badge = "DAILY WARMUP",
+                        description = "Train your working memory with today's focus puzzle.",
+                        action = "Play Now",
+                        onActionClick = { navController?.navigate(Screen.CognitiveChallenge.route) }
                     )
 
                     Spacer(modifier = Modifier.height(40.dp))
@@ -512,14 +520,18 @@ fun AnalyticsLegendItem(color: Color, label: String) {
 }
 
 @Composable
-fun DistractionsCard(modifier: Modifier = Modifier, heatmap: List<Int> = List(16) { 0 }) {
+fun FlowIntensityCard(
+    modifier: Modifier = Modifier, 
+    heatmap: List<Int> = List(16) { 0 },
+    onClick: () -> Unit = {}
+) {
     Surface(
         color = Color(0xFF161B22).copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
-        modifier = modifier
+        modifier = modifier.clickable { onClick() }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Distractions", color = Color(0xFF94A3B8), fontSize = 13.sp)
+            Text("Flow Intensity", color = Color(0xFF94A3B8), fontSize = 13.sp)
             Spacer(modifier = Modifier.height(16.dp))
             
             // Heatmap Grid
@@ -530,7 +542,7 @@ fun DistractionsCard(modifier: Modifier = Modifier, heatmap: List<Int> = List(16
                 grid.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         row.forEach { count ->
-                            val intensity = (count.toFloat() / maxDistrations.toFloat()).coerceIn(0.1f, 1f)
+                            val intensity = (count.toFloat() / maxDistrations.toFloat()).coerceIn(0.1f, 1.0f)
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
@@ -546,7 +558,7 @@ fun DistractionsCard(modifier: Modifier = Modifier, heatmap: List<Int> = List(16
             
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "High distractions detected between 2 PM - 4 PM.",
+                "Peak focus patterns detected in your last 16 sessions.",
                 color = Color(0xFF94A3B8),
                 fontSize = 10.sp,
                 lineHeight = 14.sp
@@ -562,7 +574,8 @@ fun InsightItem(
     title: String,
     badge: String? = null,
     description: String,
-    action: String? = null
+    action: String? = null,
+    onActionClick: () -> Unit = {}
 ) {
     Surface(
         color = Color(0xFF161B22).copy(alpha = 0.6f),
@@ -613,7 +626,9 @@ fun InsightItem(
                     color = Color(0xFF3B82F6),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(start = 60.dp)
+                    modifier = Modifier
+                        .padding(start = 60.dp)
+                        .clickable { onActionClick() }
                 )
             }
         }

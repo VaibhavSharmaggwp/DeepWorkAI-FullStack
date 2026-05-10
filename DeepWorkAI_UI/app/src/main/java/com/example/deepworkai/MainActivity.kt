@@ -24,7 +24,7 @@ import com.example.deepworkai.ui.SplashScreen
 import com.example.deepworkai.ui.ActiveSessionScreen
 import com.example.deepworkai.ui.AnalyticsScreen
 import com.example.deepworkai.ui.Screen
-import com.example.deepworkai.ui.DistractionInsightsScreen
+import com.example.deepworkai.ui.FlowInsightsScreen
 import com.example.deepworkai.ui.AppSelectionScreen
 import com.example.deepworkai.ui.HistoryScreen
 import com.example.deepworkai.ui.SettingsScreen
@@ -42,6 +42,8 @@ import com.example.deepworkai.ui.ProfileScreen
 import com.example.deepworkai.ui.AboutScreen
 import com.example.deepworkai.ui.HelpScreen
 import com.example.deepworkai.ui.TaskPlannerScreen
+import com.example.deepworkai.ui.VitalityScreen
+import com.example.deepworkai.ui.CognitiveChallengeScreen
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -123,8 +125,8 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.History.route) {
                             HistoryScreen(navController = navController, viewModel = sessionViewModel)
                         }
-                        composable(Screen.DistractionInsights.route) {
-                            DistractionInsightsScreen(navController = navController, viewModel = sessionViewModel)
+                        composable(Screen.FlowInsights.route) {
+                            FlowInsightsScreen(navController = navController, viewModel = sessionViewModel)
                         }
                         composable(Screen.AppSelection.route) {
                             AppSelectionScreen(navController = navController)
@@ -149,6 +151,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.TaskPlanner.route) {
                             TaskPlannerScreen(navController = navController)
+                        }
+                        composable(Screen.Vitality.route) {
+                            VitalityScreen(navController = navController)
+                        }
+                        composable(Screen.CognitiveChallenge.route) {
+                            CognitiveChallengeScreen(navController = navController)
                         }
                         composable("session_summary") {
                             SessionSummaryScreen(

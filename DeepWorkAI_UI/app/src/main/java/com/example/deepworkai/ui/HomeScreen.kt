@@ -63,6 +63,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.EventNote
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -251,7 +252,7 @@ fun HomeScreen(
                 focusStability = todayScore,
                 trend = stabilityTrend,
                 onMetricsClick = {
-                    navController?.navigate(Screen.DistractionInsights.route)
+                    navController?.navigate(Screen.FlowInsights.route)
                 }
             )
 
@@ -806,16 +807,17 @@ fun GridMetrics(distractionsCount: String = "0", focusStability: Int = 85, trend
             iconColor = stabilityColor,
             valueColor = stabilityColor
         )
-        // Distractions Card
+        // Flow Labs Card
         MetricCard(
             modifier = Modifier.weight(1f).clickable {
-                android.widget.Toast.makeText(context, "Opening distraction insights...", android.widget.Toast.LENGTH_SHORT).show()
                 onMetricsClick()
             },
-            title = "DISTRACTIONS",
-            value = distractionsCount,
-            subValue = "spikes",
-            isWarning = true
+            title = "FLOW LABS",
+            value = "DEEP INSIGHTS",
+            subValue = "",
+            icon = Icons.Default.AutoAwesome,
+            iconColor = DeepWorkBlue,
+            valueColor = Color.White
         )
     }
 }
@@ -858,7 +860,8 @@ fun MetricCard(
             Spacer(modifier = Modifier.height(16.dp))
             M3Text(title, color = DeepWorkTextSecondary, style = MaterialTheme.typography.labelSmall)
             Row(verticalAlignment = Alignment.Bottom) {
-                M3Text(value, color = valueColor, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            val adaptiveFontSize = if (value.length > 8) 18.sp else 28.sp
+            M3Text(value, color = valueColor, fontSize = adaptiveFontSize, fontWeight = FontWeight.Bold)
                 if (subValue.isNotEmpty()) {
                     M3Text(" $subValue", color = DeepWorkTextSecondary, fontSize = 12.sp)
                 }
