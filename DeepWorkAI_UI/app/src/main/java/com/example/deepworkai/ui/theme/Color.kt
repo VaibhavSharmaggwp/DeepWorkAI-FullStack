@@ -10,9 +10,9 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-val DeepWorkBackground = Color(0xFF0F172A)
+val DeepWorkBackground = Color(0xFF000000) // Pure Black for premium feel
 
-val DeepWorkSurface = Color(0xFF1E293B)
+val DeepWorkSurface = Color(0xFF0D1117) // Deep Gray-Blue for surfaces
 
 val DeepWorkBlue = Color(0xFF2563EB)
 

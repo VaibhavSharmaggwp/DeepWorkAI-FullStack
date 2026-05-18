@@ -24,6 +24,7 @@ import com.example.deepworkai.models.EndSessionResponse
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 class SessionViewModel : ViewModel() {
+    var currentFocusIntention: String = ""
 
     private val _history = MutableStateFlow<List<FocusSession>>(emptyList())
     val history: StateFlow<List<FocusSession>> = _history.asStateFlow()

@@ -1,11 +1,10 @@
 package com.example.routes
 import com.example.db.DatabaseFactory
-import com.example.models.EndSessionRequest
-import com.example.models.EndSessionResponse
-import com.example.models.SaveSessionRequest
-import com.example.models.StartSessionRequest
+import com.example.models.*
 import com.example.repository.FocusRepository
 import io.ktor.http.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -13,8 +12,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.*
-import com.example.models.ChatRequest
-import com.example.models.ChatResponse
 
 // Pass the repository as a parameter so both route sets can use it
 fun Route.allRoutes(repository: FocusRepository) {
@@ -105,18 +102,24 @@ fun Route.allRoutes(repository: FocusRepository) {
             }
         }
 
-        post("/chat") {
-            try {
-                val request = call.receive<ChatRequest>()
-                
-                // We'll mock context since we don't know the userId here without auth, 
-                // but for now we pass a generic context string or what's needed.
-                val userContext = "User has an average focus score of 80%." 
-                
-                val reply = getAIAssistantResponse(request.query, userContext, request.schedule)
-                call.respond(HttpStatusCode.OK, ChatResponse(reply))
-            } catch (e: Exception) {
-                call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
+        authenticate("auth-jwt") {
+            post("/chat") {
+                try {
+                    val principal = call.principal<JWTPrincipal>()
+                    val userId = principal?.payload?.getClaim("userId")?.asString()
+                        ?: return@post call.respond(HttpStatusCode.Unauthorized, "Missing User ID")
+
+                    val request = call.receive<ChatRequest>()
+
+                    // 🚀 FETCH REAL DATA: Use the real average score from the database
+                    val realScore = repository.getUserAverageFocusScore(userId)
+                    val userContext = "The user has an average focus score of $realScore% based on their actual deep work history."
+
+                    val reply = getAIAssistantResponse(request.query, userContext, request.schedule)
+                    call.respond(HttpStatusCode.OK, ChatResponse(reply))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, "Error: ${e.message}")
+                }
             }
         }
     }

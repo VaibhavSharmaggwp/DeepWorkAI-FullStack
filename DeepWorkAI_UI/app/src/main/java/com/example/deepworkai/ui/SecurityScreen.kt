@@ -67,9 +67,9 @@ fun SecurityScreen(navController: NavController) {
             )
             
             SecurityCard(
-                icon = Icons.Default.Lock,
-                title = "End-to-End Encryption",
-                description = "Your session data and focus metrics are encrypted before being synced to the cloud.",
+                icon = Icons.Default.CloudSync,
+                title = "Secure Cloud Sync",
+                description = "Your session data and focus metrics are securely transmitted to the cloud over standard HTTPS.",
                 enabled = e2eEnabled,
                 onToggle = { e2eEnabled = it }
             )
@@ -78,8 +78,8 @@ fun SecurityScreen(navController: NavController) {
             
             SecurityCard(
                 icon = Icons.Default.Dns,
-                title = "Local AI Processing",
-                description = "Cognitive load analysis is performed locally on your device. Your behavior never leaves your phone.",
+                title = "Local Activity Tracking",
+                description = "App usage and distraction data are tracked directly on your device during focus sessions.",
                 enabled = localProcessing,
                 onToggle = { localProcessing = it }
             )
@@ -95,17 +95,17 @@ fun SecurityScreen(navController: NavController) {
             )
             
             SecurityItem(
-                icon = Icons.Default.Assessment,
-                title = "Anonymous Analytics",
-                description = "Share crash reports and usage patterns anonymously to help us improve.",
+                icon = Icons.Default.BugReport,
+                title = "Crash Logging",
+                description = "Save internal app logs locally to help diagnose and debug issues.",
                 checked = anonymousAnalytics,
                 onCheckedChange = { anonymousAnalytics = it }
             )
             
             SecurityItem(
-                icon = Icons.Default.Fingerprint,
-                title = "Biometric Lock",
-                description = "Require fingerprint or face ID to access your session history.",
+                icon = Icons.Default.WbSunny,
+                title = "Keep Screen Awake",
+                description = "Prevent your screen from sleeping while a focus session is active.",
                 checked = biometricsEnabled,
                 onCheckedChange = { biometricsEnabled = it }
             )
@@ -147,8 +147,8 @@ fun SecurityStatusHeader() {
             Spacer(modifier = Modifier.width(20.dp))
             
             Column {
-                Text("Your Data is Safe", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                Text("DeepWorkAI uses military-grade encryption to protect your focus insights.", color = Color(0xFF94A3B8), fontSize = 14.sp)
+                Text("Data Privacy", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                Text("DeepWorkAI securely manages your local device data and cloud sessions.", color = Color(0xFF94A3B8), fontSize = 14.sp)
             }
         }
     }
@@ -236,7 +236,7 @@ fun TransparencyBanner() {
             Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF3B82F6))
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                "We are GDPR & CCPA compliant. Your privacy is our priority.",
+                "We prioritize standard security practices for your local data and cloud sync.",
                 color = Color(0xFFBFDBFE),
                 fontSize = 13.sp
             )

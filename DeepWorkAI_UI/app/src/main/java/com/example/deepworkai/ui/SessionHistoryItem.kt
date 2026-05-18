@@ -38,12 +38,13 @@ fun SessionHistoryItem(
             (end.time - start.time) / (1000 * 60)
         } else 0L
     } catch (_: Exception) { 0L }
+    val surfaceColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .clickable { onClick() }, // Navigation trigger
-        color = Color(0xFF161B22).copy(alpha = 0.6f),
+        color = surfaceColor.copy(alpha = 0.6f),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.03f))
     ) {
@@ -57,7 +58,7 @@ fun SessionHistoryItem(
                     progress = session.focusScore / 100f,
                     modifier = Modifier.size(48.dp),
                     color = Color(0xFF3B82F6),
-                    trackColor = Color(0xFF1E293B),
+                    trackColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
                     strokeWidth = 4.dp,
                     strokeCap = StrokeCap.Round
                 )
@@ -71,8 +72,28 @@ fun SessionHistoryItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            val tags = listOf("General", "Maths", "Coding", "Research", "Design", "Writing")
+            val tagIndex = java.lang.Math.abs(session.id.hashCode()) % tags.size
+            val tag = tags[tagIndex]
+
             Column(modifier = Modifier.weight(1f)) {
-                Text("Focus Block", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Focus Block", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        color = Color(0xFF3B82F6).copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f))
+                    ) {
+                        Text(
+                            text = tag,
+                            color = Color(0xFF3B82F6),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 Text(
                     "$durationMin min • ${session.distractions} distractions",
                     color = Color(0xFF94A3B8),

@@ -24,8 +24,14 @@ import com.example.deepworkai.viewmodel.SessionViewModel
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.platform.LocalContext
+import es.dmoral.toasty.Toasty
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,16 +39,18 @@ fun HistoryScreen(
     navController: NavController,
     viewModel: SessionViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val userId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
     
     val historyList by viewModel.history.collectAsState()
+    val bgColor = MaterialTheme.colorScheme.background
 
     LaunchedEffect(Unit) {
         viewModel.fetchHistory(userId)
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D1117),
+        containerColor = bgColor,
         topBar = {
             TopAppBar(
                 title = { Text("Detailed Insights", color = Color.White, fontSize = 20.sp) },
@@ -52,7 +60,10 @@ fun HistoryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.downloadReport(userId) }) {
+                    IconButton(onClick = { 
+                        val token = com.example.deepworkai.network.NetworkPreferences.authToken ?: ""
+                        openUrl(context, com.example.deepworkai.network.NetworkPreferences.backendUrl + "/api/export/pdf?token=$token")
+                    }) {
                         Icon(Icons.Default.Download, contentDescription = "Export PDF", tint = Color.White)
                     }
                 },
@@ -74,15 +85,83 @@ fun HistoryScreen(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(12.dp)) }
-    
-                items(historyList) { session ->
-                    SessionHistoryItem(session = session) {
-                        // Optional: Navigate to a specific session detail
+            var searchQuery by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+            var selectedFilter by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("Recent") } // "Recent", "Oldest", "Best", "Worst"
+
+            Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Search sessions or tags...", color = Color.Gray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF3B82F6),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true,
+                    leadingIcon = { Icon(androidx.compose.material.icons.Icons.Default.History, contentDescription = null, tint = Color.Gray) }
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Filter Chips (Custom Surface to avoid M3 version issues)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val filters = listOf("Recent", "Oldest", "Best", "Worst")
+                    filters.forEach { filter ->
+                        val isSelected = selectedFilter == filter
+                        Surface(
+                            modifier = Modifier.clickable { selectedFilter = filter },
+                            color = if (isSelected) Color(0xFF3B82F6).copy(alpha = 0.2f) else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF3B82F6) else Color.White.copy(alpha = 0.1f))
+                        ) {
+                            Text(
+                                text = filter,
+                                color = if (isSelected) Color(0xFF3B82F6) else Color.Gray,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Filter & Search Logic
+                val tags = listOf("General", "Maths", "Coding", "Research", "Design", "Writing")
+                val filteredList = historyList.filter { session ->
+                    val tagIndex = java.lang.Math.abs(session.id.hashCode()) % tags.size
+                    val tag = tags[tagIndex]
+                    session.id.contains(searchQuery, ignoreCase = true) || 
+                    tag.contains(searchQuery, ignoreCase = true) ||
+                    "Focus Block".contains(searchQuery, ignoreCase = true)
+                }.let { list ->
+                    when (selectedFilter) {
+                        "Recent" -> list.sortedByDescending { it.startTime }
+                        "Oldest" -> list.sortedBy { it.startTime }
+                        "Best" -> list.sortedByDescending { it.focusScore }
+                        "Worst" -> list.sortedBy { it.focusScore }
+                        else -> list
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(filteredList) { session ->
+                        SessionHistoryItem(session = session) {
+                            // Optional: Navigate to a specific session detail
+                        }
                     }
                 }
             }
@@ -98,3 +177,8 @@ fun HistoryScreenPreview() {
     HistoryScreen(navController = navController)
 }
 
+
+private fun openUrl(context: android.content.Context, url: String) {
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+    context.startActivity(intent)
+}

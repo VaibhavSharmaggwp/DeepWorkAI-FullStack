@@ -68,7 +68,7 @@ fun ProfileScreen(navController: NavController, viewModel: ProfileViewModel = vi
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D1117),
+        containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -93,14 +93,14 @@ fun ProfileScreen(navController: NavController, viewModel: ProfileViewModel = vi
                 modifier = Modifier
                     .size(140.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF161B22))
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(2.dp, Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF2DD4BF))), CircleShape)
             ) {
                 if (user?.imageUrl != null) {
                     val imageUrl = if (user?.imageUrl!!.startsWith("http")) {
                         user?.imageUrl
                     } else {
-                        BuildConfig.BACKEND_URL + user?.imageUrl
+                        com.example.deepworkai.network.NetworkPreferences.backendUrl + user?.imageUrl
                     }
                     
                     Image(
@@ -166,7 +166,7 @@ fun ProfileScreen(navController: NavController, viewModel: ProfileViewModel = vi
                 onClick = { galleryLauncher.launch("image/*") },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF161B22)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
                 enabled = !isLoading
             ) {
                 if (isLoading) {

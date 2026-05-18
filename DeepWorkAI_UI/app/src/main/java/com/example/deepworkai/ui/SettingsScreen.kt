@@ -29,6 +29,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.deepworkai.viewmodel.ProfileViewModel
 import kotlinx.coroutines.delay
+import es.dmoral.toasty.Toasty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +45,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D1117),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { 
@@ -55,11 +56,6 @@ fun SettingsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -75,7 +71,7 @@ fun SettingsScreen(
         ) {
             // Profile Card
             Surface(
-                color = Color(0xFF161B22),
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -90,12 +86,12 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(100.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF0D1117))
+                                .background(MaterialTheme.colorScheme.background)
                                 .border(2.dp, Color(0xFF3B82F6), CircleShape)
                         ) {
                             if (user?.imageUrl != null) {
                                 Image(
-                                    painter = rememberAsyncImagePainter(com.example.deepworkai.BuildConfig.BACKEND_URL + user?.imageUrl),
+                                    painter = rememberAsyncImagePainter(com.example.deepworkai.network.NetworkPreferences.backendUrl + user?.imageUrl),
                                     contentDescription = null,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
@@ -142,7 +138,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
-                color = Color(0xFF161B22),
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -155,11 +151,11 @@ fun SettingsScreen(
                         checked = user?.darkMode ?: true,
                         onCheckedChange = { profileViewModel.updatePreferences(darkMode = it) }
                     )
-                    Divider(color = Color(0xFF0D1117), thickness = 1.dp)
+                    Divider(color = MaterialTheme.colorScheme.background, thickness = 1.dp)
                     PreferenceItem(
                         icon = Icons.Default.Notifications,
                         title = "Notifications",
-                        subtitle = "Push & email alerts",
+                        subtitle = "Smart focus reminders",
                         onClick = { navController.navigate(Screen.Notifications.route) }
                     )
                 }
@@ -177,7 +173,7 @@ fun SettingsScreen(
                     icon = Icons.Default.PictureAsPdf,
                     iconColor = Color(0xFFEF4444),
                     modifier = Modifier.weight(1f),
-                    onClick = { openUrl(context, com.example.deepworkai.BuildConfig.BACKEND_URL + "/api/export/pdf?token=$token") }
+                    onClick = { openUrl(context, com.example.deepworkai.network.NetworkPreferences.backendUrl + "/api/export/pdf?token=$token") }
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 ExportCard(
@@ -186,7 +182,7 @@ fun SettingsScreen(
                     icon = Icons.Default.TableChart,
                     iconColor = Color(0xFF10B981),
                     modifier = Modifier.weight(1f),
-                    onClick = { openUrl(context, com.example.deepworkai.BuildConfig.BACKEND_URL + "/api/export/csv?token=$token") }
+                    onClick = { openUrl(context, com.example.deepworkai.network.NetworkPreferences.backendUrl + "/api/export/csv?token=$token") }
                 )
             }
 
@@ -194,7 +190,7 @@ fun SettingsScreen(
             
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Surface(
-                    color = Color(0xFF161B22),
+                    color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -215,7 +211,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
-                color = Color(0xFF161B22),
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -225,13 +221,13 @@ fun SettingsScreen(
                         title = "Privacy Policy",
                         onClick = { navController.navigate(Screen.Security.route) }
                     )
-                    Divider(color = Color(0xFF0D1117), thickness = 1.dp)
+                    Divider(color = MaterialTheme.colorScheme.background, thickness = 1.dp)
                     SettingsItem(
                         icon = Icons.Default.Info,
                         title = "About DeepWork AI",
                         onClick = { navController.navigate(Screen.About.route) }
                     )
-                    Divider(color = Color(0xFF0D1117), thickness = 1.dp)
+                    Divider(color = MaterialTheme.colorScheme.background, thickness = 1.dp)
                     SettingsItem(
                         icon = Icons.Default.Help,
                         title = "Help & Support",
@@ -282,7 +278,7 @@ fun PreferenceItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            color = Color(0xFF0D1117),
+            color = MaterialTheme.colorScheme.background,
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.size(40.dp)
         ) {

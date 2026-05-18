@@ -84,7 +84,7 @@ fun LoginScreen(
                                 Toasty.success(context, "Welcome, ${authResponse.user.fullName}!", Toast.LENGTH_LONG, true).show()
                                 onNavigateToHome()
                             }.onFailure { err ->
-                                Log.e("GoogleLogin", "Backend sync failed. URL: ${com.example.deepworkai.BuildConfig.BACKEND_URL}", err)
+                                Log.e("GoogleLogin", "Backend sync failed. URL: ${com.example.deepworkai.network.NetworkPreferences.backendUrl}", err)
                                 Toasty.error(context, "Backend Error: ${err.message}", Toast.LENGTH_LONG, true).show()
                             }
                         }

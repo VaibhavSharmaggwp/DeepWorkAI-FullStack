@@ -17,7 +17,12 @@ import io.ktor.server.routing.*
 import java.io.File
 
 fun main(args: Array<String>) {
-    io.ktor.server.netty.EngineMain.main(args)
+    io.ktor.server.engine.embeddedServer(
+        io.ktor.server.netty.Netty, 
+        port = 8080, 
+        host = "0.0.0.0", 
+        module = Application::module
+    ).start(wait = true)
 }
 
 fun Application.module() {
@@ -26,18 +31,6 @@ fun Application.module() {
     val userRepository = UserRepository()
     val jwtService = JwtService()
     val googleAuthService = GoogleAuthService()
-
-    val repository = FocusRepository()
-    
-    routing {
-        allRoutes(repository)
-        sessionHistoryRoutes(repository)
-        taskRoutes()
-        wellnessRoutes()
-    }
-
-    // 2. Initialize the Database
-    DatabaseFactory.init()
 
     install(Authentication) {
         jwt("auth-jwt") {
@@ -50,6 +43,16 @@ fun Application.module() {
                 }
             }
         }
+    }
+
+    val repository = FocusRepository()
+    DatabaseFactory.init()
+
+    routing {
+        allRoutes(repository)
+        sessionHistoryRoutes(repository)
+        taskRoutes()
+        wellnessRoutes()
     }
     // 3. Configure Plugins (Make sure Serialization is here!)
     configureSerialization()

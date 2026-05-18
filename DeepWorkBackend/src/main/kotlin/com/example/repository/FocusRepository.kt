@@ -1,7 +1,5 @@
 package com.example.repository
 
-
-
 import com.example.db.DailyAnalyticsTable
 import com.example.db.DatabaseFactory.dbQuery
 import com.example.db.FocusSessionsTable
@@ -221,5 +219,15 @@ class FocusRepository {
                     cognitiveLoad = it[SessionHistoryTable.cognitiveLoadStatus]
                 )
             }
+    }
+
+    suspend fun getUserAverageFocusScore(userId: String): Int = dbQuery {
+        val uId = UUID.fromString(userId)
+        val avg = FocusSessionsTable
+            .slice(FocusSessionsTable.focusScore.avg())
+            .select { FocusSessionsTable.userId eq uId }
+            .map { it[FocusSessionsTable.focusScore.avg()] }
+            .singleOrNull() ?: 0.0
+        avg.toDouble().toInt()
     }
 }

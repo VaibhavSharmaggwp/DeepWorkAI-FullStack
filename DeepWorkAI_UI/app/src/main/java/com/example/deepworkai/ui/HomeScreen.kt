@@ -197,7 +197,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            val profileImageUrl = com.example.deepworkai.BuildConfig.BACKEND_URL + (user?.imageUrl ?: "")
+            val profileImageUrl = com.example.deepworkai.network.NetworkPreferences.backendUrl + (user?.imageUrl ?: "")
             val streakCount = analyticsViewModel.uiState.value?.currentStreak ?: 0
             HomeHeader(
                 userName = userName, 
@@ -208,7 +208,11 @@ fun HomeScreen(
                 streakCount = streakCount
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            QuoteCard()
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             val todayScore = analyticsViewModel.uiState.value?.todayScore ?: 0
             val stabilityTrend = analyticsViewModel.uiState.value?.trend ?: "+0%"
@@ -293,7 +297,7 @@ fun HomeScreen(
         if (showDailyGoalDialog) {
             AlertDialog(
                 onDismissRequest = { showDailyGoalDialog = false },
-                containerColor = Color(0xFF13171D),
+                containerColor = MaterialTheme.colorScheme.surface,
                 title = {
                     DialogTitle("Set Daily Goal")
                 },
@@ -316,7 +320,7 @@ fun HomeScreen(
         if (showWellDoneDialog) {
             AlertDialog(
                 onDismissRequest = { showWellDoneDialog = false },
-                containerColor = Color(0xFF13171D),
+                containerColor = MaterialTheme.colorScheme.surface,
                 title = {
                     DialogTitle("Session Complete! 🎉")
                 },
@@ -419,6 +423,40 @@ fun AwesomeButton(onClick: () -> Unit) {
 
 
 @Composable
+fun QuoteCard() {
+    val quotes = listOf(
+        "\"Focus is a matter of deciding what things you're not going to do.\" - John Carmack",
+        "\"The successful warrior is the average man, with laser-like focus.\" - Bruce Lee",
+        "\"Starve your distractions, feed your focus.\" - Unknown",
+        "\"Deep work is the superpower of the 21st century.\" - Cal Newport",
+        "\"Always remember, your focus determines your reality.\" - George Lucas"
+    )
+    val randomQuote = remember { quotes.random() }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = DeepWorkBlue.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, DeepWorkBlue.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Lightbulb, contentDescription = null, tint = DeepWorkBlue, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            M3Text(
+                text = randomQuote,
+                color = Color(0xFFE2E8F0),
+                fontSize = 13.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
 fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, imageUrl: String? = null, onProfileClick: () -> Unit = {}, streakCount: Int = 0) {
     val dateFormatter = remember { SimpleDateFormat("EEEE, MMM dd", Locale.getDefault()) }
     val timeFormatter = remember { SimpleDateFormat("hh:mm:ss a", Locale.getDefault()) }
@@ -464,7 +502,7 @@ fun HomeHeader(userName: String, greeting: String, currentDateTime: Calendar, im
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF161B22))
+                .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, DeepWorkBlue.copy(alpha = 0.5f), CircleShape)
                 .clickable { onProfileClick() }
         ) {

@@ -58,6 +58,8 @@ fun ActiveSessionScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val tasks by taskViewModel.tasks
+    val bgColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
     var selectedTaskId by remember { mutableStateOf<String?>(null) }
     var selectedTaskTitle by remember { mutableStateOf("General Focus") }
     var showTaskSelector by remember { mutableStateOf(true) }
@@ -110,16 +112,50 @@ fun ActiveSessionScreen(
         }
     }
 
+    var customIntention by remember { mutableStateOf("") }
+
     if (showTaskSelector) {
         AlertDialog(
             onDismissRequest = { 
                 showTaskSelector = false
                 startFocusSessionInternal()
             },
-            containerColor = Color(0xFF13171D),
+            containerColor = surfaceColor,
             title = { M3Text("What are you focusing on?", color = Color.White, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = customIntention,
+                        onValueChange = { customIntention = it },
+                        label = { M3Text("Custom Intention...", color = Color.Gray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = DeepWorkBlue,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        singleLine = true
+                    )
+                    
+                    Button(
+                        onClick = {
+                            if (customIntention.isNotBlank()) {
+                                selectedTaskTitle = customIntention
+                                viewModel.currentFocusIntention = customIntention
+                            }
+                            showTaskSelector = false
+                            startFocusSessionInternal()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue),
+                        enabled = customIntention.isNotBlank()
+                    ) {
+                        M3Text("Start with Custom Intention", color = Color.White)
+                    }
+
+                    Divider(color = Color.White.copy(alpha = 0.1f))
+
                     Surface(
                         modifier = Modifier.fillMaxWidth().clickable { 
                             selectedTaskId = null
@@ -133,7 +169,7 @@ fun ActiveSessionScreen(
                         shape = RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, DeepWorkBlue)
                     ) {
-                        M3Text("General Focus", modifier = Modifier.padding(16.dp), color = Color.White)
+                        M3Text("General Focus (1h)", modifier = Modifier.padding(16.dp), color = Color.White)
                     }
                     
                     tasks.filter { it.status != "Completed" }.forEach { task ->
@@ -205,7 +241,7 @@ fun ActiveSessionScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D1117) // Deep dark blue-black background matching the image
+        containerColor = bgColor // Deep dark blue-black background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -435,11 +471,15 @@ fun ActiveSessionScreen(
                         M3Text("Focus Frequency", color = Color(0xFF64748B), fontSize = 12.sp)
                     }
 
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp).clickable { })
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp).clickable { 
+                        Toasty.info(context, "More binaural frequencies are coming soon!", Toasty.LENGTH_SHORT).show()
+                    })
                     Spacer(modifier = Modifier.width(16.dp))
                     
                     Box(
-                        modifier = Modifier.size(44.dp).background(Color(0xFF262A33), CircleShape).clickable { },
+                        modifier = Modifier.size(44.dp).background(Color(0xFF262A33), CircleShape).clickable { 
+                            Toasty.info(context, "Audio engine is initializing. Please wait...", Toasty.LENGTH_SHORT).show()
+                        },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.Pause, contentDescription = "Pause", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -453,7 +493,7 @@ fun ActiveSessionScreen(
         if (showNextBreakDialog) {
             AlertDialog(
                 onDismissRequest = { showNextBreakDialog = false },
-                containerColor = Color(0xFF13171D),
+                containerColor = surfaceColor,
                 title = {
                     M3Text("Set Next Break", fontWeight = FontWeight.Bold)
                 },
@@ -472,6 +512,7 @@ fun ActiveSessionScreen(
                                         val mins = breakTime.split(" ")[0].toInt()
                                         breakTimeSeconds = seconds + (mins * 60)
                                         showNextBreakDialog = false
+                                        Toasty.success(context, "Break scheduled in $breakTime! Keep going!", Toasty.LENGTH_SHORT).show()
                                     },
                                 color = if (nextBreakDisplay == breakTime) DeepWorkBlue.copy(alpha = 0.2f) else Color.Transparent,
                                 shape = RoundedCornerShape(8.dp),
@@ -517,9 +558,9 @@ fun ActiveSessionScreen(
         if (showBreakPopup) {
             AlertDialog(
                 onDismissRequest = { showBreakPopup = false; isPaused = false },
-                containerColor = Color(0xFF13171D),
-                title = { M3Text("Break Time! ☕", color = Color.White, fontWeight = FontWeight.Bold) },
-                text = { M3Text("Yayyy for completed this! You may take a break now.", color = Color(0xFF94A3B8)) },
+                containerColor = surfaceColor,
+                title = { M3Text("Good one! ☕", color = Color.White, fontWeight = FontWeight.Bold) },
+                text = { M3Text("Need to take a break or continue?", color = Color(0xFF94A3B8)) },
                 confirmButton = {
                     Button(
                         onClick = { showBreakPopup = false; isPaused = false },
@@ -540,7 +581,7 @@ fun ActiveSessionScreen(
         if (showCompletionPopup) {
             AlertDialog(
                 onDismissRequest = { /* Force action */ },
-                containerColor = Color(0xFF13171D),
+                containerColor = surfaceColor,
                 title = { M3Text("Session Complete! 🎉", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = { M3Text("Yayyy you completed it! Do you want to exit or continue focusing?", color = Color(0xFF94A3B8)) },
                 confirmButton = {
@@ -644,9 +685,10 @@ fun EarlyFinishDialog(
 
 @Composable
 fun MetricCard(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String, modifier: Modifier) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
     Surface(
         modifier = modifier.height(110.dp),
-        color = Color(0xFF13171D),
+        color = surfaceColor,
         shape = RoundedCornerShape(24.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f))
     ) {

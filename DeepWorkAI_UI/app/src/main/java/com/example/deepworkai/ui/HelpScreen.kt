@@ -87,8 +87,11 @@ fun HelpScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(40.dp))
             
+            val context = androidx.compose.ui.platform.LocalContext.current
             Button(
-                onClick = { /* Open Chat Support */ },
+                onClick = { 
+                    es.dmoral.toasty.Toasty.info(context, "This feature will come soon", android.widget.Toast.LENGTH_SHORT, true).show()
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))

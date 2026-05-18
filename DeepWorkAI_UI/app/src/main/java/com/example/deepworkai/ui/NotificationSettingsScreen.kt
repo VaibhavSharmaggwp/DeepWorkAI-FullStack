@@ -18,11 +18,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.deepworkai.viewmodel.ProfileViewModel
+import es.dmoral.toasty.Toasty
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileViewModel = viewModel()) {
     val user by viewModel.user
+    val context = LocalContext.current
     
     var enabled by remember { mutableStateOf(user?.notificationsEnabled ?: true) }
     var selectedType by remember { mutableStateOf(user?.notificationType ?: "notification") }
@@ -37,7 +40,7 @@ fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileV
     }
 
     Scaffold(
-        containerColor = Color(0xFF0D1117),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Notifications", color = Color.White) },
@@ -65,8 +68,7 @@ fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileV
                 Switch(
                     checked = enabled,
                     onCheckedChange = { 
-                        enabled = it
-                        viewModel.updatePreferences(notificationsEnabled = it)
+                        Toasty.info(context, "Cloud notification service is currently under maintenance. Stay tuned!", Toasty.LENGTH_SHORT).show()
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF3B82F6))
                 )
@@ -83,8 +85,7 @@ fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileV
                     icon = Icons.Default.Notifications,
                     isSelected = selectedType == "notification",
                     onClick = { 
-                        selectedType = "notification"
-                        viewModel.updatePreferences(notificationType = "notification")
+                        Toasty.info(context, "Push notifications will be available in the next update.", Toasty.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -94,8 +95,7 @@ fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileV
                     icon = Icons.Default.Email,
                     isSelected = selectedType == "email",
                     onClick = { 
-                        selectedType = "email"
-                        viewModel.updatePreferences(notificationType = "email")
+                        Toasty.warning(context, "Email integration requires a premium subscription. This feature is locked.", Toasty.LENGTH_SHORT).show()
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -110,15 +110,14 @@ fun NotificationSettingsScreen(navController: NavController, viewModel: ProfileV
             OutlinedTextField(
                 value = selectedTime,
                 onValueChange = { 
-                    selectedTime = it
-                    viewModel.updatePreferences(notificationTime = it)
+                    Toasty.info(context, "Time scheduling is currently being synchronized with our servers.", Toasty.LENGTH_SHORT).show()
                 },
                 label = { Text("Time (HH:mm)") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedTextColor = Color.White,
                     focusedTextColor = Color.White,
-                    unfocusedBorderColor = Color(0xFF161B22),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.surface,
                     focusedBorderColor = Color(0xFF3B82F6)
                 ),
                 shape = RoundedCornerShape(12.dp)

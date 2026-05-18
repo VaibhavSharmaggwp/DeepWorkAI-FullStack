@@ -70,7 +70,7 @@ fun AnalyticsContent(
     onRetry: () -> Unit = {}
 ) {
     Scaffold(
-        containerColor = Color(0xFF0D1117),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = { AnalyticsBottomNavigationBar(navController) }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -239,12 +239,12 @@ fun AnalyticsHeader(imageUrl: String? = null, onProfileClick: () -> Unit = {}) {
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF161B22))
+                .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f), CircleShape)
                 .clickable { onProfileClick() }
         ) {
             if (imageUrl != null) {
-                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else com.example.deepworkai.BuildConfig.BACKEND_URL + imageUrl
+                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else com.example.deepworkai.network.NetworkPreferences.backendUrl + imageUrl
                 Image(
                     painter = coil.compose.rememberAsyncImagePainter(fullUrl),
                     contentDescription = "Profile",
@@ -269,7 +269,7 @@ fun TimeToggleSection(selectedPeriod: String, onToggle: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(Color(0xFF161B22), RoundedCornerShape(28.dp))
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(28.dp))
             .padding(4.dp)
             .clickable(
                 indication = null,
@@ -307,7 +307,7 @@ fun FocusScoreCard(
     isMonthly: Boolean = false
 ) {
     Surface(
-        color = Color(0xFF161B22).copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -337,7 +337,7 @@ fun FocusScoreCard(
                     }
                 }
                 Surface(
-                    color = Color(0xFF1E293B),
+                    color = MaterialTheme.colorScheme.background,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     val avg = if (weeklyScores.isNotEmpty()) weeklyScores.average().toInt() else 0
@@ -489,7 +489,7 @@ fun FocusScoreCard(
 @Composable
 fun CognitiveLoadCard(modifier: Modifier = Modifier, hours: String = "5.2h") {
     Surface(
-        color = Color(0xFF161B22).copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
         modifier = modifier
     ) {
@@ -504,10 +504,11 @@ fun CognitiveLoadCard(modifier: Modifier = Modifier, hours: String = "5.2h") {
                 modifier = Modifier.align(Alignment.Start)
             )
             Spacer(modifier = Modifier.height(20.dp))
+            val bgColor = MaterialTheme.colorScheme.background
             Box(contentAlignment = Alignment.Center) {
                 Canvas(modifier = Modifier.size(100.dp)) {
                     drawArc(
-                        color = Color(0xFF1E293B),
+                        color = bgColor,
                         startAngle = 0f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -556,7 +557,7 @@ fun FlowIntensityCard(
     onClick: () -> Unit = {}
 ) {
     Surface(
-        color = Color(0xFF161B22).copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
         modifier = modifier.clickable { onClick() }
     ) {
@@ -608,7 +609,7 @@ fun InsightItem(
     onActionClick: () -> Unit = {}
 ) {
     Surface(
-        color = Color(0xFF161B22).copy(alpha = 0.6f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -671,10 +672,10 @@ fun AnalyticsBottomNavigationBar(navController: NavController? = null) {
         modifier = Modifier
             .fillMaxWidth()
             .height(90.dp)
-            .background(Color(0xFF0D1117))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Surface(
-            color = Color(0xFF161B22),
+            color = MaterialTheme.colorScheme.surface,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(70.dp)

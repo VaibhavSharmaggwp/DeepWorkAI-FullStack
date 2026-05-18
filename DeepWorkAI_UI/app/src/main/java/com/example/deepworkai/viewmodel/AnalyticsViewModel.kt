@@ -20,8 +20,9 @@ class AnalyticsViewModel : ViewModel() {
     fun fetchHistory(userId: String){
         viewModelScope.launch {
             try{
+                val baseUrl = com.example.deepworkai.network.NetworkPreferences.backendUrl
                 val response: List<SessionSummaryResponse> = KtorClient.httpClient
-                    .get ("${BuildConfig.BACKEND_URL}/sessions/history/$userId")
+                    .get ("${baseUrl}/sessions/history/$userId")
                     .body()
                 _historyState.value = response
             }catch (e: Exception){
