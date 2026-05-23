@@ -49,6 +49,7 @@ import kotlin.math.roundToInt
 import com.airbnb.lottie.compose.*
 import es.dmoral.toasty.Toasty
 import android.widget.Toast
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun ActiveSessionScreen(
@@ -89,6 +90,29 @@ fun ActiveSessionScreen(
     var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     var showEarlyFinishDialog by remember { mutableStateOf(false) }
+
+    val audioManager = remember { com.example.deepworkai.utils.AmbientAudioManager(context) }
+    
+    val soundList = listOf(
+        com.example.deepworkai.R.raw.lofi to "Lo-Fi Study",
+        com.example.deepworkai.R.raw.rain to "Heavy Rain",
+        com.example.deepworkai.R.raw.cafe to "Bustling Cafe",
+        com.example.deepworkai.R.raw.focus to "Deep Focus",
+        com.example.deepworkai.R.raw.meditate to "Meditation",
+        com.example.deepworkai.R.raw.yoga to "Yoga Flow"
+    )
+    var currentSoundIndex by remember { mutableIntStateOf(0) }
+    val selectedSound = soundList[currentSoundIndex].first
+    val soundName = soundList[currentSoundIndex].second
+
+    var isAudioPlaying by remember { mutableStateOf(false) }
+    var audioVolume by remember { mutableFloatStateOf(0.5f) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            audioManager.stopAndRelease()
+        }
+    }
 
         // We'll start the session AFTER task selection or if they skip
 
@@ -240,14 +264,99 @@ fun ActiveSessionScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    var isVolumeExpanded by remember { mutableStateOf(false) }
+    val glowColor = if (isAudioPlaying) Color(0xFF34D399) else Color.Transparent
+
     Scaffold(
-        containerColor = bgColor // Deep dark blue-black background
+        containerColor = bgColor, // Deep dark blue-black background
+        bottomBar = {
+            Surface(
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = Color(0xFF11151A),
+                border = androidx.compose.foundation.BorderStroke(1.dp, glowColor.copy(alpha=0.5f)),
+                shadowElevation = if (isAudioPlaying) 8.dp else 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Equalizer Icon Box
+                        Box(
+                            modifier = Modifier.size(48.dp).background(Color(0xFF064E3B).copy(alpha=0.8f), CircleShape).clickable {
+                                isVolumeExpanded = !isVolumeExpanded
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.BarChart, contentDescription = "Volume", tint = if (isAudioPlaying) Color(0xFF34D399) else Color(0xFF94A3B8), modifier = Modifier.size(24.dp))
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            M3Text(soundName, color = Color(0xFFF1F5F9), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            M3Text("Tap icon for volume", color = Color(0xFF64748B), fontSize = 12.sp)
+                        }
+
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF94A3B8), modifier = Modifier.size(28.dp).clickable { 
+                            // Cycle through sounds
+                            currentSoundIndex = (currentSoundIndex + 1) % soundList.size
+                            if (isAudioPlaying) {
+                                audioManager.playSound(soundList[(currentSoundIndex) % soundList.size].first)
+                            }
+                        })
+                        Spacer(modifier = Modifier.width(16.dp))
+                        
+                        Box(
+                            modifier = Modifier.size(44.dp).background(if (isAudioPlaying) Color(0xFF0EA5E9) else Color(0xFF262A33), CircleShape).clickable { 
+                                if (isAudioPlaying) {
+                                    audioManager.pause()
+                                    isAudioPlaying = false
+                                } else {
+                                    audioManager.playSound(selectedSound)
+                                    isAudioPlaying = true
+                                }
+                            },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(if (isAudioPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play/Pause", tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    if (isVolumeExpanded) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.VolumeDown, contentDescription = "Volume Down", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Slider(
+                                value = audioVolume,
+                                onValueChange = { 
+                                    audioVolume = it
+                                    audioManager.volume = it
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF34D399),
+                                    activeTrackColor = Color(0xFF34D399),
+                                    inactiveTrackColor = Color(0xFF34D399).copy(alpha=0.3f)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.VolumeUp, contentDescription = "Volume Up", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .verticalScroll(androidx.compose.foundation.rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(32.dp))
@@ -372,7 +481,7 @@ fun ActiveSessionScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // 6. Next Break
             Row(
@@ -444,50 +553,6 @@ fun ActiveSessionScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 8. Audio Player
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color(0xFF11151A),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha=0.03f)),
-                modifier = Modifier.fillMaxWidth().height(84.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Equalizer Icon Box
-                    Box(
-                        modifier = Modifier.size(48.dp).background(Color(0xFF064E3B).copy(alpha=0.8f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.BarChart, contentDescription = "Equalizer", tint = Color(0xFF34D399), modifier = Modifier.size(24.dp))
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        M3Text("Binaural Beats 40Hz", color = Color(0xFFF1F5F9), fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        M3Text("Focus Frequency", color = Color(0xFF64748B), fontSize = 12.sp)
-                    }
-
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF94A3B8), modifier = Modifier.size(20.dp).clickable { 
-                        Toasty.info(context, "More binaural frequencies are coming soon!", Toasty.LENGTH_SHORT).show()
-                    })
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Box(
-                        modifier = Modifier.size(44.dp).background(Color(0xFF262A33), CircleShape).clickable { 
-                            Toasty.info(context, "Audio engine is initializing. Please wait...", Toasty.LENGTH_SHORT).show()
-                        },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Pause, contentDescription = "Pause", tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
         }
 
         if (showNextBreakDialog) {

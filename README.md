@@ -31,6 +31,7 @@ DeepWorkAI is a sophisticated, full-stack productivity suite designed for knowle
 *   **Gamified Consistency**: Stay motivated with the **DeepWork Streak** fire system.
 *   **Cognitive Load Monitoring**: Real-time tracking of mental stamina based on focus duration and intensity.
 *   **Smart Distraction Whitelisting**: Select only the apps you need; DeepWorkAI monitors the rest without invading privacy.
+*   **Ambient Focus Sounds**: Built-in, zero-latency audio player to maintain flow state. (You can easily customize this by adding your own royalty-free `.mp3` or `.wav` files into the `DeepWorkAI_UI/app/src/main/res/raw` directory!)
 
 ### 🤖 AI Productivity Assistant (LLM Integration)
 *   **Context-Aware Chatbot**: Integrated **Qwen-2.5-72B-Instruct** model via HuggingFace Inference API.

@@ -56,3 +56,6 @@ build_err*.txt
 # App Uploads
 DeepWorkBackend/uploads/
 DeepWorkBackend/profile_pics/
+
+# Audio files
+DeepWorkAI_UI/app/src/main/res/raw/*.mp3

@@ -216,8 +216,11 @@ fun HomeScreen(
 
             val todayScore = analyticsViewModel.uiState.value?.todayScore ?: 0
             val stabilityTrend = analyticsViewModel.uiState.value?.trend ?: "+0%"
+            val totalDeepMinutes = analyticsViewModel.uiState.value?.totalDeepMinutes ?: 0
+            val accumulatedTimeDisplay = "${totalDeepMinutes / 60}h ${String.format(java.util.Locale.US, "%02dm", totalDeepMinutes % 60)}"
+            
             MainFocusCard(
-                focusTime = if (isSessionActive) formattedTime else "0h 00m",
+                focusTime = if (isSessionActive) formattedTime else accumulatedTimeDisplay,
                 trend = stabilityTrend,
                 score = if (todayScore > 0) todayScore else (user?.focusScore ?: 0),
                 cognitiveLoad = cognitiveLoad,
