@@ -29,6 +29,8 @@ object FocusSessionsTable : Table("focus_sessions") {
     val burnoutRisk = varchar("burnout_risk", 50).nullable()
     val cognitiveLoad = varchar("cognitive_load", 50).nullable()
     val taskId = uuid("task_id").nullable()
+    val sessionName = varchar("session_name", 255).nullable()
+    val tags = varchar("tags", 255).nullable()
 
     override val primaryKey = PrimaryKey(id)
 }

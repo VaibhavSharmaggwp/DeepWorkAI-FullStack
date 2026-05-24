@@ -47,12 +47,25 @@ object DatabaseFactory{
         val currentCount = FocusSessionsTable.select { FocusSessionsTable.userId eq userId }.count().toInt()
         val nextSessionNumber = currentCount + 1
 
+        var fetchedSessionName: String? = null
+        var fetchedTags: String? = null
+
+        if (taskId != null) {
+            val taskRow = TasksTable.select { TasksTable.id eq taskId }.singleOrNull()
+            if (taskRow != null) {
+                fetchedSessionName = taskRow[TasksTable.title]
+                fetchedTags = taskRow[TasksTable.category]
+            }
+        }
+
         val result = FocusSessionsTable.insert {
             it[id] = sessionId
             it[FocusSessionsTable.userId] = userId
             it[FocusSessionsTable.startTime] = startTime
             it[FocusSessionsTable.sessionNumber] = nextSessionNumber
             it[FocusSessionsTable.taskId] = taskId
+            it[FocusSessionsTable.sessionName] = fetchedSessionName
+            it[FocusSessionsTable.tags] = fetchedTags
         }
 
         if (result.insertedCount > 0) {
@@ -61,7 +74,9 @@ object DatabaseFactory{
                 userId = userId.toString(),
                 startTime = startTime.toString(),
                 sessionNumber = nextSessionNumber,
-                taskId = taskId?.toString()
+                taskId = taskId?.toString(),
+                sessionName = fetchedSessionName,
+                tags = fetchedTags
             )
         } else null
     }
@@ -105,7 +120,9 @@ object DatabaseFactory{
                     endTime = endTime.toString(),
                     focusScore = calculatedScore,
                     distractions = distractions,
-                    sessionNumber = existingSession[FocusSessionsTable.sessionNumber]
+                    sessionNumber = existingSession[FocusSessionsTable.sessionNumber],
+                    sessionName = existingSession[FocusSessionsTable.sessionName],
+                    tags = existingSession[FocusSessionsTable.tags]
                 )
             } else null
         } else null
@@ -125,7 +142,9 @@ object DatabaseFactory{
                     focusScore = it[FocusSessionsTable.focusScore],
                     distractions = it[FocusSessionsTable.distractions],
                     sessionNumber = it[FocusSessionsTable.sessionNumber],
-                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low"
+                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low",
+                    sessionName = it[FocusSessionsTable.sessionName],
+                    tags = it[FocusSessionsTable.tags]
                 )
             }
     }
@@ -144,7 +163,9 @@ object DatabaseFactory{
                     focusScore = it[FocusSessionsTable.focusScore],
                     distractions = it[FocusSessionsTable.distractions],
                     sessionNumber = it[FocusSessionsTable.sessionNumber],
-                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low"
+                    cognitiveLoad = it[FocusSessionsTable.cognitiveLoad] ?: "Low",
+                    sessionName = it[FocusSessionsTable.sessionName],
+                    tags = it[FocusSessionsTable.tags]
                 )
             }
     }

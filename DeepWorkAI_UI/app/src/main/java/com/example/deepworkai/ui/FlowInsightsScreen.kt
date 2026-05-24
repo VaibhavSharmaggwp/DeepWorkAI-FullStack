@@ -15,12 +15,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +37,11 @@ import com.example.deepworkai.network.NetworkPreferences
 import com.example.deepworkai.ui.theme.*
 import com.example.deepworkai.viewmodel.SessionViewModel
 import kotlinx.coroutines.delay
+
+val CyberNeonCyan = Color(0xFF00F0FF)
+val CyberNeonPurple = Color(0xFFB026FF)
+val CyberDarkBg = Color(0xFF0B0C10)
+val CyberSurface = Color(0xFF1F2833)
 
 @Composable
 fun FlowInsightsScreen(
@@ -45,6 +55,18 @@ fun FlowInsightsScreen(
     var isLoading by remember { mutableStateOf(true) }
     val sessionHistory by viewModel.history.collectAsState()
 
+    // Infinite transition for cyber scanning line
+    val infiniteTransition = rememberInfiniteTransition(label = "scan")
+    val scanOffset by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "scan_offset"
+    )
+
     LaunchedEffect(Unit) {
         viewModel.fetchHistory(userId)
         val result = focusService.getDistractionInsights(userId)
@@ -55,123 +77,203 @@ fun FlowInsightsScreen(
     }
 
     Scaffold(
-        containerColor = DeepWorkBackground
+        containerColor = CyberDarkBg
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Header
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.05f),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clickable { navController.popBackStack() }
-                ) {
-                    Icon(
-                        Icons.Default.ArrowBack, 
-                        contentDescription = "Back", 
-                        tint = Color.White,
-                        modifier = Modifier.padding(8.dp)
-                    )
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Cyber Background Grid
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val gridSpacing = 60.dp.toPx()
+                for (i in 0..size.width.toInt() step gridSpacing.toInt()) {
+                    drawLine(Color.White.copy(alpha = 0.03f), Offset(i.toFloat(), 0f), Offset(i.toFloat(), size.height), 1f)
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Flow State Lab",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                for (i in 0..size.height.toInt() step gridSpacing.toInt()) {
+                    drawLine(Color.White.copy(alpha = 0.03f), Offset(0f, i.toFloat()), Offset(size.width, i.toFloat()), 1f)
+                }
+            }
+
+            // Scanning Laser Line
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val y = size.height * scanOffset
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, CyberNeonCyan.copy(alpha = 0.5f), Color.Transparent),
+                        startY = y - 20f,
+                        endY = y + 20f
+                    ),
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = 4f
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(modifier = Modifier.height(32.dp))
 
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = DeepWorkBlue)
+                // Header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.05f),
+                        border = BorderStroke(1.dp, CyberNeonCyan.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clickable { navController.popBackStack() }
+                    ) {
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            contentDescription = "Back", 
+                            tint = CyberNeonCyan,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "FLOW.STATE.LAB",
+                            color = Color.White,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp
+                        )
+                        Text("SYS.OVERRIDE_ACTIVE", color = CyberNeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
                 }
-            } else {
-                // Feature 1: Focus Stability Report
-                Text(
-                    "Focus Stability Trend",
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                FocusStabilityChart(scores = sessionHistory.takeLast(7).map { it.focusScore })
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Feature 2: Cognitive Resilience Metric
-                val totalDistractions = insightsData?.sessions?.sumOf { it.apps.sumOf { it.usageTime } } ?: 0
-                val resilienceScore = (100 - (totalDistractions * 2)).coerceIn(0, 100)
-                CognitiveResilienceCard(score = resilienceScore)
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Feature 3: AI Flow Recommendation
-                if (insightsData?.recommendation?.isNotEmpty() == true) {
-                    AIInsightCard(insightsData?.recommendation!!)
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
-
-                // Feature 4: Focus Leaks (Renamed from Distractions)
-                if (insightsData?.sessions?.isNotEmpty() == true) {
-                    Text(
-                        "Focus Leaks",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Periods where your attention drifted to other apps.",
-                        color = DeepWorkTextSecondary,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    insightsData?.sessions?.forEachIndexed { index, session ->
-                        session.apps.forEach { app ->
-                            FocusLeakRow(app = app)
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = CyberNeonCyan)
                     }
                 } else {
-                    EmptyFlowState()
+                    // Feature 1: Glowing Neon Trend Graph
+                    Text(
+                        "NEURAL STABILITY TREND",
+                        color = CyberNeonPurple,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    val scores = sessionHistory.takeLast(7).map { it.focusScore }
+                    if (scores.isEmpty()) {
+                        CyberEmptyState("INSUFFICIENT DATA FOR TREND ANALYSIS")
+                    } else {
+                        GlowingCyberChart(scores = scores)
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Feature 2: Rotating HUD Rings (Cognitive Resilience)
+                    val totalDistractions = insightsData?.sessions?.sumOf { it.apps.sumOf { it.usageTime } } ?: 0
+                    val hasData = sessionHistory.isNotEmpty()
+                    val resilienceScore = if (hasData) {
+                        (100 - (totalDistractions * 2)).coerceIn(0, 100)
+                    } else null
+                    
+                    CyberResilienceHud(score = resilienceScore)
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Feature 3: Neural Overload Predictor
+                    val totalFocusMinsToday = sessionHistory.filter { 
+                        it.startTime.contains(java.time.LocalDate.now().toString()) 
+                    }.sumOf { 
+                        try {
+                            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+                            val start = sdf.parse(it.startTime)
+                            val end = it.endTime?.let { e -> sdf.parse(e) } ?: start
+                            if (start != null && end != null) ((end.time - start.time) / (1000 * 60)).toInt() else 0
+                        } catch(e: Exception) { 0 }
+                    }
+                    NeuralOverloadPredictor(totalFocusMinsToday)
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Feature 4: AI Insight
+                    if (insightsData?.recommendation?.isNotEmpty() == true) {
+                        CyberAIInsightCard(insightsData?.recommendation!!)
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+
+                    // Feature 5: Focus Leaks
+                    Text(
+                        "ATTENTION LEAKS DETECTED",
+                        color = Color(0xFFF87171),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    if (insightsData?.sessions?.isNotEmpty() == true) {
+                        insightsData?.sessions?.forEachIndexed { index, session ->
+                            session.apps.forEach { app ->
+                                CyberFocusLeakRow(app = app)
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    } else {
+                        if(hasData) {
+                             Text("0 LEAKS. NEURO-PATHWAYS OPTIMAL.", color = CyberNeonCyan, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        } else {
+                             Text("NO DATA LOGGED.", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(40.dp))
                 }
-                
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
 }
 
 @Composable
-fun FocusStabilityChart(scores: List<Int>) {
-    val displayScores = if (scores.isEmpty()) listOf(70, 75, 72, 85, 80, 92, 88) else scores
-    
+fun CyberEmptyState(msg: String) {
     Surface(
-        color = DeepWorkSurface,
+        color = CyberSurface.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().height(150.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(msg, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 12.sp, letterSpacing = 1.sp)
+        }
+    }
+}
+
+@Composable
+fun GlowingCyberChart(scores: List<Int>) {
+    Surface(
+        color = CyberSurface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth().height(180.dp)
+        border = BorderStroke(1.dp, CyberNeonCyan.copy(alpha = 0.3f)),
+        modifier = Modifier.fillMaxWidth().height(200.dp)
     ) {
         Box(modifier = Modifier.padding(20.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
                 val height = size.height
-                val spacing = width / (displayScores.size - 1).coerceAtLeast(1)
+                val spacing = width / (scores.size - 1).coerceAtLeast(1)
                 
-                val points = displayScores.mapIndexed { index, score ->
-                    androidx.compose.ui.geometry.Offset(
+                // Draw internal grid
+                val rows = 4
+                for(i in 0..rows) {
+                    val y = height * (i.toFloat() / rows)
+                    drawLine(Color.White.copy(0.05f), Offset(0f, y), Offset(width, y), 1f)
+                }
+
+                val points = scores.mapIndexed { index, score ->
+                    Offset(
                         x = index * spacing,
                         y = height * (1f - (score / 100f))
                     )
@@ -192,67 +294,96 @@ fun FocusStabilityChart(scores: List<Int>) {
                     }
                 }
 
+                // Shadow/Glow layer
                 drawPath(
                     path = path,
-                    color = DeepWorkBlue,
+                    color = CyberNeonCyan.copy(alpha = 0.4f),
+                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                )
+
+                // Core line
+                drawPath(
+                    path = path,
+                    color = CyberNeonCyan,
                     style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
                 )
 
-                // Gradient fill
-                val fillPath = Path().apply {
-                    addPath(path)
-                    lineTo(width, height)
-                    lineTo(0f, height)
-                    close()
+                // Points
+                points.forEach { pt ->
+                    drawCircle(CyberNeonPurple, radius = 6.dp.toPx(), center = pt)
+                    drawCircle(Color.White, radius = 3.dp.toPx(), center = pt)
                 }
-                drawPath(
-                    path = fillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(DeepWorkBlue.copy(alpha = 0.3f), Color.Transparent)
-                    )
-                )
             }
         }
     }
 }
 
 @Composable
-fun CognitiveResilienceCard(score: Int) {
+fun CyberResilienceHud(score: Int?) {
+    val infiniteTransition = rememberInfiniteTransition(label = "hud")
+    val rotation1 by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(4000, easing = LinearEasing)), label = "r1"
+    )
+    val rotation2 by infiniteTransition.animateFloat(
+        initialValue = 360f, targetValue = 0f,
+        animationSpec = infiniteRepeatable(animation = tween(6000, easing = LinearEasing)), label = "r2"
+    )
+
     Surface(
-        color = DeepWorkSurface,
+        color = CyberSurface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, CyberNeonPurple.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    progress = score / 100f,
-                    color = Color(0xFF2DD4BF),
-                    strokeWidth = 6.dp,
-                    modifier = Modifier.size(60.dp)
-                )
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+                // Outer ring
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    rotate(rotation1) {
+                        drawArc(
+                            color = CyberNeonPurple, startAngle = 0f, sweepAngle = 280f,
+                            useCenter = false, style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Square)
+                        )
+                    }
+                }
+                // Inner ring
+                Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
+                    rotate(rotation2) {
+                        drawArc(
+                            color = CyberNeonCyan, startAngle = 45f, sweepAngle = 200f,
+                            useCenter = false, style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                        )
+                    }
+                }
+                
                 Text(
-                    "$score%", 
+                    text = if (score != null) "$score%" else "N/A", 
                     color = Color.White, 
-                    fontSize = 14.sp, 
-                    fontWeight = FontWeight.Bold
+                    fontSize = 18.sp, 
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Monospace
                 )
             }
             Spacer(modifier = Modifier.width(20.dp))
             Column {
                 Text(
-                    "Cognitive Resilience", 
+                    "COGNITIVE RESILIENCE", 
                     color = Color.White, 
-                    fontSize = 16.sp, 
-                    fontWeight = FontWeight.Bold
+                    fontSize = 14.sp, 
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "How well you maintained focus.", 
-                    color = DeepWorkTextSecondary, 
-                    fontSize = 12.sp
+                    if (score != null) "Neurological resistance to digital distraction algorithms." else "Awaiting neural sync data.", 
+                    color = Color.Gray, 
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
                 )
             }
         }
@@ -260,72 +391,70 @@ fun CognitiveResilienceCard(score: Int) {
 }
 
 @Composable
-fun FocusLeakRow(app: DistractionApp) {
-    Surface(
-        color = Color.White.copy(alpha = 0.03f),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.05f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(app.appName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(app.appName, color = Color.White, modifier = Modifier.weight(1f))
-            Text("${app.usageTime}m", color = Color(0xFFF87171), fontWeight = FontWeight.Bold)
+fun NeuralOverloadPredictor(totalFocusMins: Int) {
+    // Let's say overload happens at 300 mins (5 hours)
+    val maxMins = 300f
+    val progress = (totalFocusMins / maxMins).coerceIn(0f, 1f)
+    
+    val barColor = when {
+        progress < 0.5f -> CyberNeonCyan
+        progress < 0.8f -> Color(0xFFF59E0B)
+        else -> Color(0xFFF87171)
+    }
+
+    Column {
+        Text("NEURAL BURNOUT PREDICTOR", color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Box(modifier = Modifier.fillMaxWidth().height(16.dp).background(CyberSurface, RoundedCornerShape(8.dp))) {
+            Box(modifier = Modifier
+                .fillMaxWidth(progress)
+                .fillMaxHeight()
+                .background(barColor, RoundedCornerShape(8.dp))
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("OPTIMAL", color = CyberNeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            Text("CRITICAL LIMIT", color = Color(0xFFF87171), fontSize = 10.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
 
 @Composable
-fun EmptyFlowState() {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+fun CyberFocusLeakRow(app: DistractionApp) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(CyberSurface.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).border(1.dp, Color(0xFFF87171).copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("✨", fontSize = 48.sp)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "Pristine Focus Detected", 
-            color = Color(0xFF4ADE80), 
-            fontSize = 18.sp, 
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Your recent sessions have been free of digital distractions. Your neuro-performance is peaking!", 
-            color = DeepWorkTextSecondary,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            fontSize = 14.sp
-        )
+        Text("[ERR]", color = Color(0xFFF87171), fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(app.appName.uppercase(), color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Text("${app.usageTime} MINS", color = Color(0xFFF87171), fontFamily = FontFamily.Monospace, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-fun AIInsightCard(recommendation: String) {
+fun CyberAIInsightCard(recommendation: String) {
     Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = Color(0xFF2DD4BF).copy(alpha = 0.1f),
-        border = BorderStroke(1.dp, Color(0xFF2DD4BF).copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(16.dp),
+        color = CyberNeonCyan.copy(alpha = 0.05f),
+        border = BorderStroke(1.dp, CyberNeonCyan.copy(alpha = 0.5f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AutoAwesome, contentDescription = "AI Insight", tint = Color(0xFF2DD4BF), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.AutoAwesome, contentDescription = "AI", tint = CyberNeonCyan, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("AI FLOW RECOMMENDATION", color = Color(0xFF2DD4BF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("CORTEX_AI_ANALYSIS", color = CyberNeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = recommendation,
+                text = "> $recommendation",
                 color = Color.White,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
                 lineHeight = 20.sp
             )
         }

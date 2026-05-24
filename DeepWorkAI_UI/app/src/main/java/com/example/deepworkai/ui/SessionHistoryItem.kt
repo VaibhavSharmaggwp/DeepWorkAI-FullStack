@@ -72,13 +72,12 @@ fun SessionHistoryItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            val tags = listOf("General", "Maths", "Coding", "Research", "Design", "Writing")
-            val tagIndex = java.lang.Math.abs(session.id.hashCode()) % tags.size
-            val tag = tags[tagIndex]
+            val tag = session.tags ?: "Focus"
+            val displayTitle = session.sessionName ?: "General Block"
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Focus Block", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(displayTitle, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         color = Color(0xFF3B82F6).copy(alpha = 0.2f),
@@ -118,6 +117,6 @@ fun SessionHistoryItem(
 @Preview
 @Composable
 fun SessionHistoryItemPreview() {
-    val mock = FocusSession("1", "userId", "2023-10-27T10:00:00", null, 87, 2, 42, "Optimal")
+    val mock = FocusSession("1", "userId", "2023-10-27T10:00:00", null, 87, 2, 42, "Optimal", null, "Design System", "Coding")
     SessionHistoryItem(session = mock)
 }

@@ -7,6 +7,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
@@ -88,9 +91,53 @@ fun HistoryScreen(
             var searchQuery by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
             var selectedFilter by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("Recent") } // "Recent", "Oldest", "Best", "Worst"
 
+            val totalFocusMinutes = historyList.sumOf { 
+                try {
+                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+                    val start = sdf.parse(it.startTime)
+                    val end = it.endTime?.let { e -> sdf.parse(e) } ?: start
+                    if (start != null && end != null) ((end.time - start.time) / (1000 * 60)).toInt() else 0
+                } catch(e: Exception) { 0 }
+            }
+            val totalHours = totalFocusMinutes / 60
+            val remainingMins = totalFocusMinutes % 60
+            
+            val avgScore = if (historyList.isNotEmpty()) historyList.sumOf { it.focusScore } / historyList.size else 0
+            val topCategory = historyList.mapNotNull { it.tags }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key ?: "N/A"
+
             Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
                 Spacer(modifier = Modifier.height(12.dp))
                 
+                // Analytics Summary Cards
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    SummaryCard(
+                        title = "Focus Time",
+                        value = "${totalHours}h ${remainingMins}m",
+                        icon = Icons.Default.Timer,
+                        color = Color(0xFF3B82F6),
+                        modifier = Modifier.weight(1f)
+                    )
+                    SummaryCard(
+                        title = "Avg Score",
+                        value = "$avgScore%",
+                        icon = Icons.Default.Star,
+                        color = Color(0xFF10B981),
+                        modifier = Modifier.weight(1f)
+                    )
+                    SummaryCard(
+                        title = "Top Tag",
+                        value = topCategory,
+                        icon = Icons.Default.Category,
+                        color = Color(0xFF8B5CF6),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+
                 // Search Bar
                 OutlinedTextField(
                     value = searchQuery,
@@ -137,13 +184,12 @@ fun HistoryScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // Filter & Search Logic
-                val tags = listOf("General", "Maths", "Coding", "Research", "Design", "Writing")
                 val filteredList = historyList.filter { session ->
-                    val tagIndex = java.lang.Math.abs(session.id.hashCode()) % tags.size
-                    val tag = tags[tagIndex]
-                    session.id.contains(searchQuery, ignoreCase = true) || 
-                    tag.contains(searchQuery, ignoreCase = true) ||
-                    "Focus Block".contains(searchQuery, ignoreCase = true)
+                    val displayTitle = session.sessionName ?: "General Block"
+                    val tag = session.tags ?: "Focus"
+                    
+                    displayTitle.contains(searchQuery, ignoreCase = true) || 
+                    tag.contains(searchQuery, ignoreCase = true)
                 }.let { list ->
                     when (selectedFilter) {
                         "Recent" -> list.sortedByDescending { it.startTime }
@@ -181,4 +227,27 @@ fun HistoryScreenPreview() {
 private fun openUrl(context: android.content.Context, url: String) {
     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
     context.startActivity(intent)
+}
+
+@Composable
+fun SummaryCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(title, color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+    }
 }

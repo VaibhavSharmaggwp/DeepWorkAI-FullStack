@@ -12,7 +12,9 @@ data class FocusSession(
     val distractions: Int = 0,
     val sessionNumber: Int = 1,
     val cognitiveLoad: String = "Low",
-    val taskId: String? = null
+    val taskId: String? = null,
+    val sessionName: String? = null,
+    val tags: String? = null
 )
 
 @Serializable
