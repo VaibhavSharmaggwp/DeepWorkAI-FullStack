@@ -216,8 +216,8 @@ fun HomeScreen(
 
             val todayScore = analyticsViewModel.uiState.value?.todayScore ?: 0
             val stabilityTrend = analyticsViewModel.uiState.value?.trend ?: "+0%"
-            val totalDeepMinutes = analyticsViewModel.uiState.value?.totalDeepMinutes ?: 0
-            val accumulatedTimeDisplay = "${totalDeepMinutes / 60}h ${String.format(java.util.Locale.US, "%02dm", totalDeepMinutes % 60)}"
+            val todayDeepMinutes = analyticsViewModel.uiState.value?.todayDeepMinutes ?: 0
+            val accumulatedTimeDisplay = "${todayDeepMinutes / 60}h ${String.format(java.util.Locale.US, "%02dm", todayDeepMinutes % 60)}"
             
             MainFocusCard(
                 focusTime = if (isSessionActive) formattedTime else accumulatedTimeDisplay,
@@ -710,7 +710,12 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
 
             if (weeklyMinutes.isEmpty() || weeklyMinutes.all { it == 0 }) {
                 Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
-                    M3Text("No focus data for this week yet.", color = DeepWorkTextSecondary, fontSize = 14.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Eco, contentDescription = null, tint = DeepWorkTextSecondary.copy(alpha=0.5f), modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        M3Text("Ready for your first session?", color = DeepWorkTextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        M3Text("Start a focus block to see your trends", color = DeepWorkTextSecondary.copy(alpha=0.7f), fontSize = 11.sp)
+                    }
                 }
             } else {
                 // Ensure we have 7 points for the week, padding with 0 if necessary

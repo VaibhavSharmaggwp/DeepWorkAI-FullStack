@@ -179,21 +179,21 @@ fun AnalyticsContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        Icons.Default.Analytics,
+                        Icons.Default.Assessment,
                         contentDescription = null,
-                        tint = Color(0xFF475569),
+                        tint = Color(0xFF2563EB).copy(alpha = 0.5f),
                         modifier = Modifier.size(80.dp)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        "No Analytics Data",
+                        "Awaiting Neural Sync",
                         color = Color.White,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "We couldn't find any session data for you. Start your first deep work session to see your insights!",
+                        "No focus sessions recorded yet. Start your first deep work session to calibrate your analytics dashboard.",
                         color = Color(0xFF94A3B8),
                         fontSize = 15.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -201,12 +201,12 @@ fun AnalyticsContent(
                     )
                     Spacer(modifier = Modifier.height(32.dp))
                     Button(
-                        onClick = onRetry,
+                        onClick = { navController?.navigate("active_session") },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth(0.7f).height(50.dp)
                     ) {
-                        Text("Retry Fetch", fontWeight = FontWeight.Bold)
+                        Text("Start First Session", fontWeight = FontWeight.Bold)
                     }
                 }
             }

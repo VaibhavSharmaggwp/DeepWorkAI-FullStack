@@ -69,14 +69,19 @@ fun ActiveSessionScreen(
     var sessionId by remember { mutableStateOf<String?>(null) }
     var sessionNumber by remember { mutableIntStateOf(1) }
     
-    var seconds by remember { mutableIntStateOf(0) } // Count up from 0
-    var maxSeconds by remember { mutableIntStateOf(3600) } // Default 1 hour
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    val seconds by com.example.deepworkai.services.FocusTimerManager.seconds.collectAsState()
+    var maxSeconds by remember { mutableIntStateOf(3600) } // Local state used before start
+    val isPaused by com.example.deepworkai.services.FocusTimerManager.isPaused.collectAsState()
+    val isTimerActive by com.example.deepworkai.services.FocusTimerManager.isActive.collectAsState()
+
     var targetDurationMinutes by remember { mutableIntStateOf(60) }
     
     var distractions by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var isPaused by remember { mutableStateOf(false) }
     val cognitiveLoad by viewModel.cognitiveLoad.collectAsState()
 
     var showNextBreakDialog by remember { mutableStateOf(false) }
@@ -86,8 +91,7 @@ fun ActiveSessionScreen(
     var showCompletionPopup by remember { mutableStateOf(false) }
     var brainFocusValue by remember { mutableIntStateOf(85) }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var sessionStartTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
 
     var showEarlyFinishDialog by remember { mutableStateOf(false) }
 
@@ -126,6 +130,17 @@ fun ActiveSessionScreen(
             if (session != null) {
                 sessionId = session.id
                 sessionNumber = session.sessionNumber
+            }
+            
+            // Start Foreground Service
+            val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply {
+                action = com.example.deepworkai.services.FocusTimerService.ACTION_START
+                putExtra(com.example.deepworkai.services.FocusTimerService.EXTRA_MAX_SECONDS, maxSeconds)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
             }
             
             // Late-Night Toast Warning
@@ -218,20 +233,10 @@ fun ActiveSessionScreen(
         )
     }
 
-    // Timer Logic: Increments every second if not paused
-    LaunchedEffect(isPaused) {
-        while (seconds < maxSeconds) {
-            if (!isPaused) {
-                delay(1000)
-                seconds++
-            } else {
-                delay(500) // Polling interval while paused
-            }
-        }
-        // Auto-show completion popup if timer completes
-        if (seconds >= maxSeconds) {
+    // Timer Logic: Foreground Service handles counting up. We just watch the state.
+    LaunchedEffect(seconds) {
+        if (isTimerActive && seconds >= com.example.deepworkai.services.FocusTimerManager.maxSeconds.value && !showCompletionPopup) {
             showCompletionPopup = true
-            isPaused = true
         }
     }
 
@@ -240,7 +245,8 @@ fun ActiveSessionScreen(
         // Check for break
         if (breakTimeSeconds > 0 && seconds >= breakTimeSeconds) {
             showBreakPopup = true
-            isPaused = true
+            val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_PAUSE }
+            context.startService(intent)
             breakTimeSeconds = -1 // Reset
         }
         
@@ -519,7 +525,11 @@ fun ActiveSessionScreen(
                     shape = RoundedCornerShape(20.dp),
                     color = if (isPaused) Color(0xFFFACC15).copy(alpha = 0.2f) else Color(0xFF171A21),
                     border = androidx.compose.foundation.BorderStroke(1.dp, if (isPaused) Color(0xFFFACC15) else Color.White.copy(alpha=0.03f)),
-                    modifier = Modifier.size(64.dp).clickable { isPaused = !isPaused }
+                    modifier = Modifier.size(64.dp).clickable { 
+                        val action = if (isPaused) com.example.deepworkai.services.FocusTimerService.ACTION_RESUME else com.example.deepworkai.services.FocusTimerService.ACTION_PAUSE
+                        val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { this.action = action }
+                        context.startService(intent)
+                    }
                 ) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                         Icon(
@@ -544,6 +554,8 @@ fun ActiveSessionScreen(
                                     val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
                                     finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
                                 }
+                                val stopIntent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_STOP }
+                                context.startService(stopIntent)
                                 onFinish(finalResult)
                             }
                         }
@@ -622,20 +634,32 @@ fun ActiveSessionScreen(
 
         if (showBreakPopup) {
             AlertDialog(
-                onDismissRequest = { showBreakPopup = false; isPaused = false },
+                onDismissRequest = { 
+                    showBreakPopup = false 
+                    val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_RESUME }
+                    context.startService(intent)
+                },
                 containerColor = surfaceColor,
                 title = { M3Text("Good one! ☕", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = { M3Text("Need to take a break or continue?", color = Color(0xFF94A3B8)) },
                 confirmButton = {
                     Button(
-                        onClick = { showBreakPopup = false; isPaused = false },
+                        onClick = { 
+                            showBreakPopup = false
+                            val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_RESUME }
+                            context.startService(intent)
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = DeepWorkBlue)
                     ) {
                         M3Text("Continue", color = Color.White)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showBreakPopup = false; isPaused = true }) {
+                    TextButton(onClick = { 
+                        showBreakPopup = false 
+                        val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_PAUSE }
+                        context.startService(intent)
+                    }) {
                         M3Text("Take a Break", color = DeepWorkBlue)
                     }
                 },
@@ -660,6 +684,8 @@ fun ActiveSessionScreen(
                                     val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
                                     finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
                                 }
+                                val stopIntent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_STOP }
+                                context.startService(stopIntent)
                                 onFinish(finalResult)
                             }
                         },
@@ -672,7 +698,9 @@ fun ActiveSessionScreen(
                     TextButton(onClick = { 
                         showCompletionPopup = false 
                         maxSeconds += 1500 // Add 25 more minutes
-                        isPaused = false 
+                        com.example.deepworkai.services.FocusTimerManager.setMaxSeconds(maxSeconds)
+                        val intent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_RESUME }
+                        context.startService(intent)
                     }) {
                         M3Text("Continue", color = DeepWorkBlue)
                     }

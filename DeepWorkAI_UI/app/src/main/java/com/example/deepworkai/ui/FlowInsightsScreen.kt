@@ -185,14 +185,17 @@ fun FlowInsightsScreen(
 
                     // Feature 3: Neural Overload Predictor
                     val totalFocusMinsToday = sessionHistory.filter { 
-                        it.startTime.contains(java.time.LocalDate.now().toString()) 
+                        it.startTime.startsWith(java.time.LocalDate.now().toString()) 
                     }.sumOf { 
                         try {
-                            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
-                            val start = sdf.parse(it.startTime)
-                            val end = it.endTime?.let { e -> sdf.parse(e) } ?: start
-                            if (start != null && end != null) ((end.time - start.time) / (1000 * 60)).toInt() else 0
-                        } catch(e: Exception) { 0 }
+                            val startStr = it.startTime.substringBefore(".") // Remove milliseconds if any
+                            val start = java.time.LocalDateTime.parse(startStr)
+                            val endStr = it.endTime?.substringBefore(".") ?: startStr
+                            val end = if (endStr != "null") java.time.LocalDateTime.parse(endStr) else start
+                            java.time.Duration.between(start, end).toMinutes().toInt()
+                        } catch(e: Exception) { 
+                            0 
+                        }
                     }
                     NeuralOverloadPredictor(totalFocusMinsToday)
                     
@@ -392,8 +395,8 @@ fun CyberResilienceHud(score: Int?) {
 
 @Composable
 fun NeuralOverloadPredictor(totalFocusMins: Int) {
-    // Let's say overload happens at 300 mins (5 hours)
-    val maxMins = 300f
+    // Let's say overload happens at 120 mins (2 hours) for demo purposes
+    val maxMins = 120f
     val progress = (totalFocusMins / maxMins).coerceIn(0f, 1f)
     
     val barColor = when {

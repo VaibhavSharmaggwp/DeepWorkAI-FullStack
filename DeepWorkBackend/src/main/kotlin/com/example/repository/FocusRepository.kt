@@ -161,6 +161,7 @@ class FocusRepository {
             weeklyScores = historyEntries.map { it[DailyAnalyticsTable.avgFocusScore] },
             weeklyDeepMinutes = historyEntries.map { it[DailyAnalyticsTable.totalDeepMinutes] },
             totalDeepMinutes = historyEntries.sumOf { it[DailyAnalyticsTable.totalDeepMinutes] },
+            todayDeepMinutes = today?.get(DailyAnalyticsTable.totalDeepMinutes) ?: 0,
             contextSwitches = today?.get(DailyAnalyticsTable.contextSwitches) ?: 0,
             heatmap = today?.get(DailyAnalyticsTable.distractionHeatmap)?.split(",")?.map { it.toInt() } ?: List(16) { 0 },
             todayScore = todayScore,

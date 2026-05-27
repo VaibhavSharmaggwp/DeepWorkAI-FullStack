@@ -7,6 +7,7 @@ data class AnalyticsDashboard(
     val weeklyScores: List<Int>,
     val weeklyDeepMinutes: List<Int> = emptyList(),
     val totalDeepMinutes: Int,
+    val todayDeepMinutes: Int = 0,
     val contextSwitches: Int,
     val heatmap: List<Int>,
     val todayScore: Int,
