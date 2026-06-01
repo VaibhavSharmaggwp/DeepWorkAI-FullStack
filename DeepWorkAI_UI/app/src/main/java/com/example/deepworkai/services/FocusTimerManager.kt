@@ -18,6 +18,9 @@ object FocusTimerManager {
     val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
 
     fun updateTimerState(seconds: Int, maxSeconds: Int, isPaused: Boolean, isActive: Boolean) {
+        // Yeh function UI aur service ke beech me timer state sync karta hai. 
+        // Jab bhi background me timer ka 1 second badhta hai, toh yeh function call hota hai
+        // jisse UI automatically update ho jaye. (Jetpack Compose me StateFlow observe hota hai)
         _seconds.value = seconds
         _maxSeconds.value = maxSeconds
         _isPaused.value = isPaused
@@ -25,6 +28,8 @@ object FocusTimerManager {
     }
 
     fun setMaxSeconds(max: Int) {
+        // User ne jitna bhi target focus time set kiya hai (in seconds),
+        // usko save karne ke liye yeh function use hota hai.
         _maxSeconds.value = max
     }
 }

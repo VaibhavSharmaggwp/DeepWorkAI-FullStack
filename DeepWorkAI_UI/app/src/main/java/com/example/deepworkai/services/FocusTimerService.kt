@@ -39,6 +39,8 @@ class FocusTimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Yeh function tab call hota hai jab hum service ko start, pause, ya stop karne ka intent bhejte hain.
+        // Intent ke action ke base par yeh decide karta hai ki konsa function call karna hai.
         intent?.let {
             when (it.action) {
                 ACTION_START -> {
@@ -56,53 +58,58 @@ class FocusTimerService : Service() {
                 }
             }
         }
-        return START_NOT_STICKY
+        return START_NOT_STICKY // Iska matlab hai agar system service kill kar de, toh use apne aap wapas start mat karna.
     }
 
     private fun startTimer() {
+        // Yeh function timer aur foreground notification start karta hai.
         if (isRunning) return
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        startForeground(NOTIFICATION_ID, createNotification()) // Notification dikhaane ke liye
         isRunning = true
         isPaused = false
         
         timerJob = serviceScope.launch {
+            // Yeh loop continuously chalta hai jab tak session chal raha hai
             while (isRunning && seconds < maxSeconds) {
                 if (!isPaused) {
-                    delay(1000)
+                    delay(1000) // 1 second ka delay
                     seconds++
-                    updateNotification()
-                    FocusTimerManager.updateTimerState(seconds, maxSeconds, isPaused, isRunning)
+                    updateNotification() // Notification me time update karta hai
+                    FocusTimerManager.updateTimerState(seconds, maxSeconds, isPaused, isRunning) // UI ke liye StateFlow update karta hai
                 } else {
-                    delay(500)
+                    delay(500) // Agar pause hai toh sirf wait karta hai taaki CPU waste na ho
                 }
             }
             if (seconds >= maxSeconds) {
-                // Timer finished natively
+                // Agar session time khatam ho gaya
                 isRunning = false
                 isPaused = true
                 FocusTimerManager.updateTimerState(seconds, maxSeconds, isPaused, isRunning)
-                stopForeground(true)
-                stopSelf()
+                stopForeground(true) // Notification hata deta hai
+                stopSelf() // Service bandh kar deta hai
             }
         }
     }
 
     private fun pauseTimer() {
+        // Session ko pause karta hai. State update hoti hai jisse timer ruk jata hai.
         isPaused = true
         FocusTimerManager.updateTimerState(seconds, maxSeconds, isPaused, isRunning)
         updateNotification()
     }
 
     private fun resumeTimer() {
+        // Paused session ko wapas resume karta hai.
         isPaused = false
         FocusTimerManager.updateTimerState(seconds, maxSeconds, isPaused, isRunning)
         updateNotification()
     }
 
     private fun stopTimer() {
+        // Timer ko permanently stop karta hai aur resources/service ko release kar deta hai.
         isRunning = false
-        timerJob?.cancel()
+        timerJob?.cancel() // Coroutine ko stop karta hai
         seconds = 0
         FocusTimerManager.updateTimerState(0, maxSeconds, false, false)
         stopForeground(true)

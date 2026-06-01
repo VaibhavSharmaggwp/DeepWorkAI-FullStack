@@ -11,6 +11,8 @@ object NetworkPreferences {
     private lateinit var prefs: SharedPreferences
 
     fun init(context: Context) {
+        // App start hone par MainActivity se call hota hai.
+        // Yeh SharedPreferences ko initialize karta hai taaki hum user ka data device me save kar sake.
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 

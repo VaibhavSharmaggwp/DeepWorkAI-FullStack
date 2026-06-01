@@ -117,8 +117,7 @@ fun AnalyticsContent(
                         CognitiveLoadCard(modifier = Modifier.weight(1f), hours = hours)
                         FlowIntensityCard(
                             modifier = Modifier.weight(1.1f), 
-                            heatmap = data.heatmap,
-                            onClick = { navController?.navigate(Screen.FlowInsights.route) }
+                            heatmap = data.heatmap
                         )
                     }
 
@@ -152,12 +151,98 @@ fun AnalyticsContent(
                         onActionClick = { navController?.navigate(Screen.Vitality.route) }
                     )
 
+                    var showPledgeDialog by remember { mutableStateOf(false) }
+
                     InsightItem(
                         icon = Icons.Default.Bolt,
                         iconColor = Color(0xFFF59E0B),
                         title = "Consistency",
-                        description = data.consistencyInsight // ohoo mza aagya
+                        description = data.consistencyInsight,
+                        action = "Sign Contract",
+                        onActionClick = { showPledgeDialog = true }
                     )
+
+                    if (showPledgeDialog) {
+                        var isPledged by remember { mutableStateOf(false) }
+                        
+                        AlertDialog(
+                            onDismissRequest = { showPledgeDialog = false },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            title = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        if (isPledged) Icons.Default.VerifiedUser else Icons.Default.HistoryEdu, 
+                                        contentDescription = null, 
+                                        tint = if (isPledged) Color(0xFF10B981) else Color(0xFFF59E0B),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        if (isPledged) "Contract Sealed" else "Neural Binding", 
+                                        color = if (isPledged) Color(0xFF10B981) else Color.White, 
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 20.sp
+                                    )
+                                }
+                            },
+                            text = {
+                                Column {
+                                    if (isPledged) {
+                                        Text(
+                                            "Your commitment is recorded. Your neuro-pathways are now locked into the momentum zone. Breaking the chain will reset your cognitive baseline.",
+                                            color = Color(0xFF94A3B8),
+                                            lineHeight = 22.sp
+                                        )
+                                    } else {
+                                        Text(
+                                            "Consistency beats intensity. Are you willing to legally bind your focus, committing to at least one deep work session every day for the next 7 days, no matter what?",
+                                            color = Color(0xFF94A3B8),
+                                            lineHeight = 22.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Surface(
+                                            color = Color(0xFFF59E0B).copy(alpha = 0.1f),
+                                            border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.3f)),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                "Warning: Signing this contract requires absolute discipline.",
+                                                color = Color(0xFFF59E0B),
+                                                modifier = Modifier.padding(12.dp),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                if (!isPledged) {
+                                    Button(
+                                        onClick = { isPledged = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                    ) {
+                                        Text("Sign Contract", color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = { showPledgeDialog = false },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                                    ) {
+                                        Text("I Understand", color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            },
+                            dismissButton = {
+                                if (!isPledged) {
+                                    TextButton(onClick = { showPledgeDialog = false }) {
+                                        Text("Not Ready", color = Color.Gray)
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                    }
 
                     InsightItem(
                         icon = Icons.Default.Gamepad,
@@ -553,13 +638,12 @@ fun AnalyticsLegendItem(color: Color, label: String) {
 @Composable
 fun FlowIntensityCard(
     modifier: Modifier = Modifier, 
-    heatmap: List<Int> = List(16) { 0 },
-    onClick: () -> Unit = {}
+    heatmap: List<Int> = List(16) { 0 }
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         shape = RoundedCornerShape(24.dp),
-        modifier = modifier.clickable { onClick() }
+        modifier = modifier
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Flow Intensity", color = Color(0xFF94A3B8), fontSize = 13.sp)
@@ -573,12 +657,20 @@ fun FlowIntensityCard(
                 grid.forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         row.forEach { count ->
-                            val intensity = (count.toFloat() / maxDistrations.toFloat()).coerceIn(0.1f, 1.0f)
+                            val isMostFocused = count == 0
+                            val intensity = if (isMostFocused) 1.0f else (1f - (count.toFloat() / maxDistrations.toFloat()) * 0.7f).coerceIn(0.1f, 0.5f)
+                            val boxColor = if (isMostFocused) Color(0xFF34D399) else Color(0xFF2563EB)
+                            
                             Box(
                                 modifier = Modifier
                                     .size(28.dp)
+                                    .then(
+                                        if (isMostFocused) {
+                                            Modifier.border(1.dp, Color(0xFF34D399).copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                                        } else Modifier
+                                    )
                                     .background(
-                                        Color(0xFF2563EB).copy(alpha = intensity),
+                                        boxColor.copy(alpha = intensity),
                                         RoundedCornerShape(6.dp)
                                     )
                             )

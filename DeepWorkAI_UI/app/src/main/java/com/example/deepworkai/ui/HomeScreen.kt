@@ -703,7 +703,6 @@ fun WeeklyFocusGraph(weeklyMinutes: List<Int>) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 M3Text("Weekly Focus (Mins)", color = Color.White, fontWeight = FontWeight.Bold)
-                Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = DeepWorkTextSecondary)
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -24,6 +24,8 @@ data class HistoryEntry(
 class FocusRepository {
 
     suspend fun calculateStreak(userId: String): Int = dbQuery {
+        // Yeh function user ki "focus streak" calculate karta hai (lagatar kitne din usne focus kiya).
+        // Database se pichle dino ki dates utha kar check karta hai ki chain tooti toh nahi.
         val uId = UUID.fromString(userId)
         val dates = FocusSessionsTable.slice(FocusSessionsTable.startTime)
             .select { FocusSessionsTable.userId eq uId }
@@ -63,6 +65,9 @@ class FocusRepository {
         risk: String,
         distractionList: List<Int> = List(16) { 0 }
     ) = dbQuery {
+        // Jab bhi koi session khatam hota hai, yeh function call hota hai.
+        // Yeh database me session ka data (score, duration, risk) save/update karta hai
+        // aur DailyAnalytics me aaj ke din ka summary (heatmap, total minutes) update karta hai.
         val uId = UUID.fromString(userId)
         val today = LocalDate.now()
 
@@ -105,6 +110,7 @@ class FocusRepository {
     }
 
     suspend fun getAnalytics(userId: String, date: LocalDate) = dbQuery {
+        // Yeh function kisi ek din ka distraction heatmap list return karta hai.
         DailyAnalyticsTable.select {
             (DailyAnalyticsTable.userId eq UUID.fromString(userId)) and (DailyAnalyticsTable.statDate eq date)
         }.singleOrNull()?.let { row ->
@@ -117,6 +123,8 @@ class FocusRepository {
     }
 
     suspend fun getDashboard(userId: String, days: Int = 7): AnalyticsDashboard = dbQuery {
+        // Yeh function pure Analytics Dashboard ka data backend se nikalta hai.
+        // Yeh Python ML script ko call karke AI insights bhi laata hai aur charts ke liye weekly data bhejta hai.
         val uId = UUID.fromString(userId)
         val todayDate = LocalDate.now()
 
@@ -174,6 +182,8 @@ class FocusRepository {
     }
 
     private fun getAIAnalyticsInsights(historyJson: String): Map<String, String> {
+        // Yeh function ek alag Python script (analytics_insights.py) ko chalata hai background me.
+        // Python model history data ko analyse karta hai aur insights (e.g. peak focus time) wapas return karta hai.
         return try {
             val pythonPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\venv\\Scripts\\python.exe"
             val scriptPath = "C:\\Users\\srija\\Desktop\\MAJOR_PROJECT\\deepwork_ml\\analytics_insights.py"
@@ -193,6 +203,7 @@ class FocusRepository {
     }
 
     suspend fun saveSessionToHistory(req: SaveSessionRequest) = dbQuery {
+        // Yeh newly finished session ko SessionHistoryTable me permanent history ke liye insert karta hai.
         SessionHistoryTable.insert {
             it[id] = UUID.randomUUID()
             it[userId] = UUID.fromString(req.userId)
@@ -207,6 +218,7 @@ class FocusRepository {
     }
 
     suspend fun getUserSessionHistory(userId: String): List<FocusSession> = dbQuery {
+        // Yeh function History screen ke liye user ke saare purane sessions nikal kar deta hai, naye wale pehle (DESC).
         SessionHistoryTable.select { SessionHistoryTable.userId eq UUID.fromString(userId) }
             .orderBy(SessionHistoryTable.startTime, SortOrder.DESC) // Newest sessions first
             .map {
@@ -223,6 +235,7 @@ class FocusRepository {
     }
 
     suspend fun getUserAverageFocusScore(userId: String): Int = dbQuery {
+        // Yeh function user ke sabhi sessions ka overall average focus score calculate karke return karta hai.
         val uId = UUID.fromString(userId)
         val avg = FocusSessionsTable
             .slice(FocusSessionsTable.focusScore.avg())

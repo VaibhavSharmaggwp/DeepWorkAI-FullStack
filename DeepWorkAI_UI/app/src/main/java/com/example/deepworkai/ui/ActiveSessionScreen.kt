@@ -235,8 +235,18 @@ fun ActiveSessionScreen(
 
     // Timer Logic: Foreground Service handles counting up. We just watch the state.
     LaunchedEffect(seconds) {
-        if (isTimerActive && seconds >= com.example.deepworkai.services.FocusTimerManager.maxSeconds.value && !showCompletionPopup) {
-            showCompletionPopup = true
+        if (seconds > 0 && seconds >= com.example.deepworkai.services.FocusTimerManager.maxSeconds.value) {
+            coroutineScope.launch {
+                var finalResult: com.example.deepworkai.models.EndSessionResponse? = null
+                sessionId?.let { id ->
+                    val endTime = System.currentTimeMillis()
+                    val apps = com.example.deepworkai.utils.AppUsageTracker.getUsedApps(context, sessionStartTime, endTime)
+                    finalResult = focusService.endSession(id, distractions, apps, targetDurationMinutes)
+                }
+                val stopIntent = android.content.Intent(context, com.example.deepworkai.services.FocusTimerService::class.java).apply { action = com.example.deepworkai.services.FocusTimerService.ACTION_STOP }
+                context.startService(stopIntent)
+                onFinish(finalResult)
+            }
         }
     }
 
@@ -375,8 +385,6 @@ fun ActiveSessionScreen(
                 Icon(Icons.Default.Bolt, contentDescription = "Mode", tint = Color(0xFF2DD4BF), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 M3Text("DEEP FOCUS MODE", color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(Icons.Default.Tune, contentDescription = "Settings", tint = Color(0xFF94A3B8))
             }
 
             Spacer(modifier = Modifier.height(48.dp))
