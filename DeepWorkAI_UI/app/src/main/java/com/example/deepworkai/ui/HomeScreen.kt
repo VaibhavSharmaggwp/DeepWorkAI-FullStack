@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
@@ -1312,80 +1313,76 @@ fun RowScope.WellnessToggle(
 fun TopDistractionsCard(insightsData: DistractionInsightsResponse?) {
     val topApps = remember(insightsData) {
         insightsData?.sessions?.flatMap { it.apps }
+            ?.filter { !it.appName.contains("tiktok", ignoreCase = true) }
             ?.groupBy { it.appName }
             ?.mapValues { entry -> entry.value.sumOf { it.usageTime } }
             ?.toList()
             ?.sortedByDescending { it.second }
-            ?.take(3)
+            ?.take(5)
     }
 
     if (topApps.isNullOrEmpty()) {
         return
     }
+    
+    val maxTime = topApps.maxOfOrNull { it.second }?.toFloat() ?: 1f
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(32.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF11111A)) // Dark background like image
     ) {
-        Box(modifier = Modifier.fillMaxWidth().background(
-            Brush.verticalGradient(
-                colors = listOf(
-                    DeepWorkSurface,
-                    Color(0xFF3B0918).copy(alpha = 0.8f) // Deep leaking crimson red
-                )
-            )
-        ).border(1.dp, Color(0xFFEF4444).copy(alpha = 0.2f), RoundedCornerShape(32.dp))) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.WaterDrop, contentDescription = "Leak", tint = Color(0xFFEF4444), modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    M3Text("Top Focus Leaks", color = Color(0xFFFCA5A5), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 1.sp)
-                }
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                topApps.forEachIndexed { index, (appName, time) ->
-                    val leakIntensity = 1f - (index * 0.2f)
-                    val leakColor = Color(0xFFEF4444).copy(alpha = leakIntensity)
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        leakColor.copy(alpha = 0.2f),
-                                        Color.Transparent
-                                    )
-                                ), 
-                                RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
-                            )
-                            .border(
-                                0.5.dp, 
-                                Brush.horizontalGradient(
-                                    colors = listOf(leakColor.copy(alpha = 0.5f), Color.Transparent)
-                                ),
-                                RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
-                            )
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Smooth leaking droplet effect
-                        Box(modifier = Modifier
-                            .size(12.dp)
-                            .background(leakColor, CircleShape)
-                            .blur(2.dp)
-                        )
-                        Box(modifier = Modifier
-                            .size(6.dp)
-                            .offset(x = (-9).dp)
-                            .background(Color.White, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        M3Text(appName.uppercase(), color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), letterSpacing = 1.sp)
-                        M3Text("$time MINS", color = leakColor, fontWeight = FontWeight.Black, fontSize = 16.sp)
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF2D1618),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Distractions", tint = Color(0xFFF87171), modifier = Modifier.size(24.dp))
                     }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    M3Text("Top Distractions", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    M3Text("Most opened apps across sessions", color = Color.Gray, fontSize = 14.sp)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            topApps.forEachIndexed { index, (appName, time) ->
+                val rankColor = when (index) {
+                    0 -> Color(0xFFEF4444) // Red
+                    1 -> Color(0xFFF59E0B) // Orange
+                    else -> Color(0xFF6366F1) // Indigo/Blue
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    M3Text("${index + 1}", color = rankColor, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.width(24.dp))
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            M3Text(appName, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 16.sp)
+                            M3Text("${time}m total", color = Color.Gray, fontSize = 14.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Progress bar line
+                        LinearProgressIndicator(
+                            progress = { (time.toFloat() / maxTime).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                            color = rankColor,
+                            trackColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    }
+                }
+                if (index < topApps.size - 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }

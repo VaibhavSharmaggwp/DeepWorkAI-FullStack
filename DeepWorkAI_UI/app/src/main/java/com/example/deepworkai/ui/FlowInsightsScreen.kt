@@ -53,6 +53,7 @@ fun FlowInsightsScreen(
 
     var insightsData by remember { mutableStateOf<DistractionInsightsResponse?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var showInfoDialog by remember { mutableStateOf(false) }
     val sessionHistory by viewModel.history.collectAsState()
 
     // Infinite transition for cyber scanning line
@@ -71,7 +72,10 @@ fun FlowInsightsScreen(
         viewModel.fetchHistory(userId)
         val result = focusService.getDistractionInsights(userId)
         if (result != null) {
-            insightsData = result
+            val filteredSessions = result.sessions.map { session ->
+                session.copy(apps = session.apps.filter { !it.appName.contains("tiktok", ignoreCase = true) })
+            }
+            insightsData = result.copy(sessions = filteredSessions)
         }
         isLoading = false
     }
@@ -142,6 +146,10 @@ fun FlowInsightsScreen(
                             letterSpacing = 2.sp
                         )
                         Text("SYS.OVERRIDE_ACTIVE", color = CyberNeonCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { showInfoDialog = true }) {
+                        Icon(Icons.Default.Info, contentDescription = "Info", tint = CyberNeonCyan)
                     }
                 }
 
@@ -251,6 +259,32 @@ fun FlowInsightsScreen(
                     
                     Spacer(modifier = Modifier.height(40.dp))
                 }
+            }
+            
+            if (showInfoDialog) {
+                AlertDialog(
+                    onDismissRequest = { showInfoDialog = false },
+                    title = { Text("What is the Flow State Lab?", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column {
+                            Text("The Flow State Lab calculates your pure cognitive performance and resilience against digital distractions.", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("🧠 Cognitive Resilience", fontWeight = FontWeight.Bold, color = CyberNeonCyan)
+                            Text("This score represents your neurological resistance to apps that steal your attention. It's calculated by comparing your pure Deep Focus time against the time you spent distracted. A score of 100% means perfect, unbroken focus!", fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("🔥 Neural Overload Predictor", fontWeight = FontWeight.Bold, color = Color(0xFFF87171))
+                            Text("Deep work takes energy. We monitor your total focus time today to predict when your brain might hit cognitive burnout (usually around 2 hours of intense focus without a break).", fontSize = 13.sp)
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showInfoDialog = false }) {
+                            Text("GOT IT", color = CyberNeonCyan, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    containerColor = CyberSurface,
+                    titleContentColor = Color.White,
+                    textContentColor = Color.LightGray
+                )
             }
         }
     }
