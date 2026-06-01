@@ -15,7 +15,12 @@ class GoogleAuthManager(context: Context) {
 
     private val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
         .requestEmail()
-        .requestIdToken(com.example.deepworkai.BuildConfig.GOOGLE_CLIENT_ID)
+        .apply {
+            val clientId = com.example.deepworkai.BuildConfig.GOOGLE_CLIENT_ID
+            if (clientId.isNotEmpty()) {
+                requestIdToken(clientId)
+            }
+        }
         .build()
 
     private val googleSignInClient = GoogleSignIn.getClient(context, gso)
