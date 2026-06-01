@@ -61,17 +61,6 @@ fun Route.allRoutes(repository: FocusRepository) {
                             userId = updatedSession.userId.toString(),
                             apps = request.distractedApps
                         )
-                    } else if (updatedSession.distractions > 0) {
-                        // Dynamically generate mock distractions for demonstration if Android stats failed but distractions were recorded
-                        val mockAppNames = listOf("Instagram", "TikTok", "YouTube", "Messages", "Twitter", "Snapchat", "Reddit")
-                        val generatedApps = mockAppNames.shuffled().take(updatedSession.distractions.coerceAtMost(5)).map { appName ->
-                            DistractionApp(appName, (2..15).random())
-                        }
-                        DatabaseFactory.insertDistractions(
-                            sessionId = updatedSession.id,
-                            userId = updatedSession.userId.toString(),
-                            apps = generatedApps
-                        )
                     }
 
                     // 🚀 CRITICAL: Update the Analytics table whenever a session ends!
