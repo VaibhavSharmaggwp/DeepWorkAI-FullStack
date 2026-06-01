@@ -173,10 +173,26 @@ fun FlowInsightsScreen(
                     Spacer(modifier = Modifier.height(32.dp))
 
                     // Feature 2: Rotating HUD Rings (Cognitive Resilience)
-                    val totalDistractions = insightsData?.sessions?.sumOf { it.apps.sumOf { it.usageTime } } ?: 0
+                    val totalDistractionMins = insightsData?.sessions?.sumOf { it.apps.sumOf { it.usageTime } } ?: 0
+                    val totalFocusMinsAllTime = sessionHistory.sumOf { 
+                        try {
+                            val startStr = it.startTime.substringBefore(".")
+                            val start = java.time.LocalDateTime.parse(startStr)
+                            val endStr = it.endTime?.substringBefore(".") ?: startStr
+                            val end = if (endStr != "null") java.time.LocalDateTime.parse(endStr) else start
+                            java.time.Duration.between(start, end).toMinutes().toInt()
+                        } catch(e: Exception) { 
+                            0 
+                        }
+                    }
                     val hasData = sessionHistory.isNotEmpty()
                     val resilienceScore = if (hasData) {
-                        (100 - (totalDistractions * 2)).coerceIn(0, 100)
+                        if (totalFocusMinsAllTime == 0) {
+                            if (totalDistractionMins > 0) 0 else 100
+                        } else {
+                            val ratio = totalFocusMinsAllTime.toFloat() / (totalFocusMinsAllTime + totalDistractionMins).toFloat()
+                            (ratio * 100).toInt().coerceIn(0, 100)
+                        }
                     } else null
                     
                     CyberResilienceHud(score = resilienceScore)

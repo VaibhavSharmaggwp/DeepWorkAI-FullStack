@@ -1,6 +1,8 @@
 package com.example.deepworkai.ui
 
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.deepworkai.R
 import com.example.deepworkai.network.FocusService
+import com.example.deepworkai.models.DistractionInsightsResponse
 import com.example.deepworkai.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -86,13 +89,18 @@ fun HomeScreen(
 ) {
     val user by profileViewModel.user
     
-    LaunchedEffect(Unit) {
-        profileViewModel.fetchProfile()
-    }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val focusService = remember{ FocusService() }
     var isSessionActive by remember { mutableStateOf(false) }
+    
+    var insightsData by remember { mutableStateOf<DistractionInsightsResponse?>(null) }
+    
+    LaunchedEffect(Unit) {
+        profileViewModel.fetchProfile()
+        val uId = com.example.deepworkai.network.NetworkPreferences.userId ?: "4acbc632-9cb6-4d7c-8bcc-8c3bd226f9c0"
+        insightsData = focusService.getDistractionInsights(uId)
+    }
     var currentSessionId by remember { mutableStateOf<String?>(null) }
     var focusTimeDisplay by remember { mutableStateOf("0h 00m") }
 
@@ -113,10 +121,6 @@ fun HomeScreen(
     
     // Cognitive Load from ViewModel
     val cognitiveLoad by viewModel.cognitiveLoad.collectAsState()
-
-    LaunchedEffect(Unit) {
-        profileViewModel.fetchProfile()
-    }
 
     // Update Date & Time every second
     LaunchedEffect(Unit) {
@@ -209,10 +213,6 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-            
-            QuoteCard()
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             val todayScore = analyticsViewModel.uiState.value?.todayScore ?: 0
             val stabilityTrend = analyticsViewModel.uiState.value?.trend ?: "+0%"
@@ -244,6 +244,10 @@ fun HomeScreen(
                     onNavigateToActiveSession()
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            TopDistractionsCard(insightsData)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -1304,3 +1308,86 @@ fun RowScope.WellnessToggle(
     }
 }
 
+@Composable
+fun TopDistractionsCard(insightsData: DistractionInsightsResponse?) {
+    val topApps = remember(insightsData) {
+        insightsData?.sessions?.flatMap { it.apps }
+            ?.groupBy { it.appName }
+            ?.mapValues { entry -> entry.value.sumOf { it.usageTime } }
+            ?.toList()
+            ?.sortedByDescending { it.second }
+            ?.take(3)
+    }
+
+    if (topApps.isNullOrEmpty()) {
+        return
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().background(
+            Brush.verticalGradient(
+                colors = listOf(
+                    DeepWorkSurface,
+                    Color(0xFF3B0918).copy(alpha = 0.8f) // Deep leaking crimson red
+                )
+            )
+        ).border(1.dp, Color(0xFFEF4444).copy(alpha = 0.2f), RoundedCornerShape(32.dp))) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.WaterDrop, contentDescription = "Leak", tint = Color(0xFFEF4444), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    M3Text("Top Focus Leaks", color = Color(0xFFFCA5A5), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 1.sp)
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                topApps.forEachIndexed { index, (appName, time) ->
+                    val leakIntensity = 1f - (index * 0.2f)
+                    val leakColor = Color(0xFFEF4444).copy(alpha = leakIntensity)
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        leakColor.copy(alpha = 0.2f),
+                                        Color.Transparent
+                                    )
+                                ), 
+                                RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
+                            )
+                            .border(
+                                0.5.dp, 
+                                Brush.horizontalGradient(
+                                    colors = listOf(leakColor.copy(alpha = 0.5f), Color.Transparent)
+                                ),
+                                RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Smooth leaking droplet effect
+                        Box(modifier = Modifier
+                            .size(12.dp)
+                            .background(leakColor, CircleShape)
+                            .blur(2.dp)
+                        )
+                        Box(modifier = Modifier
+                            .size(6.dp)
+                            .offset(x = (-9).dp)
+                            .background(Color.White, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        M3Text(appName.uppercase(), color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), letterSpacing = 1.sp)
+                        M3Text("$time MINS", color = leakColor, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                    }
+                }
+            }
+        }
+    }
+}

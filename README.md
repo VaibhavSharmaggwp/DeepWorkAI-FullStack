@@ -24,8 +24,17 @@ DeepWorkAI isn't just a timer; it computes real-time neurological and performanc
 ### 🧪 Flow State Lab (Futuristic HUD)
 *   **Cybernetic Rotating HUD**: A dynamic, glowing visualizer for your Cognitive Resilience score. 
 *   **Glowing Cyber Trend Graph**: Replaces boring charts with a neon cyan/purple glowing trend line over a cybernetic grid, plotting your last 7 neural stability scores.
-*   **Attention Leaks Analysis**: Automatically detects when your attention drifts to known distracting apps and calculates the exact penalty in minutes.
+*   **Top Focus Leaks Analysis**: Automatically detects when your attention drifts to known distracting apps and calculates the exact penalty in minutes, displayed in a sleek, "liquid" UI card.
 *   **Calibration Mode**: Beautiful empty-state animations ("Awaiting Neural Sync") prevent the app from looking broken when you have no data.
+
+### 🧠 Cognitive Challenges & Brain Training
+*   **Dynamic Arcade Menu**: Train your focus with a suite of mini-games categorized by difficulty.
+*   **5 Brain-Training Games**: 
+    *   **Pattern Sequence (Easy)**: Recreate the flashing memory blocks.
+    *   **Color Match (Easy)**: Overcome the Stroop effect by matching color names to text colors under pressure.
+    *   **Quick Math (Medium)**: Solve rapid arithmetic equations.
+    *   **Reaction Speed (Medium)**: Test your pure reflexes and aim for sub-300ms reaction times.
+    *   **Memory Matrix (Hard)**: Memorize and recall complex 4x4 illuminated grid patterns with 3 lives.
 
 ### ⚡ Vitality & Focus Sync
 *   **Focus-Fitness Correlation**: A dedicated dashboard that links physical wellness (Sleep, Hydration, Exercise) to your focus performance.
